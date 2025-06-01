@@ -1,0 +1,28 @@
+import pytest
+
+from script_bpe.pretokenize import PRETOKENIZER_REGISTRY
+
+
+@pytest.mark.parametrize("pretokenizer_name", list(PRETOKENIZER_REGISTRY.keys()))
+def test_pretokenizers_in_registry(pretokenizer_name):
+    sample_strings = [
+        "Hello world",
+        "1234 مَبْنِي",
+        "世 界!",
+        "한글o ❤️",
+        "a\nb\nc\r\nd",
+        "❤️\u200CInvisible Zero Width Non-Joiner ",
+        "~\u202ERight-To-Left Override",
+        " \u000DCarriage Return",
+    ]
+
+    pretokenizer = PRETOKENIZER_REGISTRY[pretokenizer_name]()
+    for s in sample_strings:
+        # Encode and chunk the string
+        encoded_chunks = pretokenizer.encode_and_chunk(s)
+        # Decode the chunks back to a string
+        decoded_string = pretokenizer.decode([item for sublist in encoded_chunks for item in sublist])
+        # Ensure round-trip consistency
+        assert decoded_string == pretokenizer.normalize(
+            s
+        ), f"Failed for pretokenizer: {pretokenizer_name} on string: {s!r}"

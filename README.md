@@ -2,7 +2,7 @@
 
 This repository provides tools for SCRIPT encoding-based pre-tokenization and BPE.
 
-For details of the methods, see our paper: "BPE Stays on SCRIPT: Structured Encoding for Robust Multilingual Pretokenization"
+For details of the methods, see our paper: [BPE Stays on SCRIPT: Structured Encoding for Robust Multilingual Pretokenization](https://arxiv.org/abs/2505.24689)
 
 ## Overview
 

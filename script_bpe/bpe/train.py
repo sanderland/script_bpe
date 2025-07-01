@@ -164,6 +164,7 @@ def train_bpe(
     pretokenizer: BasePretokenizer,
     corpus: PretokenizedCorpus,
     additional_vocab_size: int,
+    scaffold_bpe: bool = False,
     num_workers: int = 4,
     verbose: bool = True,
 ):
@@ -204,7 +205,8 @@ def train_bpe(
     logger.info(f"Initialized with {len(pair_counts_heap):,d} token pairs")
 
     # --- Main Training Loop ---
-    while len(merge_rules) < additional_vocab_size:
+    num_merge_rules_to_train = additional_vocab_size * 1.1 if scaffold_bpe else additional_vocab_size
+    while len(merge_rules) < num_merge_rules_to_train:
         if not pair_counts_heap:
             logger.warning("Heap empty - no more merges possible - overly small corpus?")
             break
@@ -261,6 +263,8 @@ def train_bpe(
             tokens[token_id].original_count += token.original_count
             tokens[token_id].current_count += token.current_count
 
+ 
+
     # --- Terminate Workers ---
     for p in workers:
         p.join()
@@ -276,3 +280,4 @@ def train_bpe(
             tokens=[t.report_dict(pretokenizer) for t in tokens.values()],
         ),
     )
+

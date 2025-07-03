@@ -7,12 +7,13 @@ import sys
 import time
 import unicodedata
 from typing import Iterable
+import gc
 
 # one dir lower than this script
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ---- multiprocessing context ----
-
+gc.freeze()  # docs suggest freezing to avoid copy-on-write
 mp_ctx = multiprocessing.get_context("forkserver")
 
 # ---- typing ----

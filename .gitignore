@@ -1,6 +1,7 @@
 # debug
 log*.txt
 profile*
+*.so
 
 # test runs
 results/tokenizers/swift/*

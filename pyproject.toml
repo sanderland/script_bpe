@@ -18,6 +18,7 @@ dependencies = [
     "pytest>=8.3.5",
     "pip>=25.1.1", # avoids jupyter notebook in vscode issues
     "jinja2>=3.1.6",
+    "pybind11>=2.10.0",
 ]
 
 
@@ -32,5 +33,14 @@ line-length = 120
 profile="black"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=45", "pybind11>=2.10.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["script_bpe*"]
+
+[[tool.setuptools.ext-modules]]
+name = "script_bpe.bpe.fast.fast_tokenizer_cpp"
+sources = ["script_bpe/bpe/fast/python_bindings.cpp", "script_bpe/bpe/fast/bpe_core.cpp"]
+language = "c++"
+extra-compile-args = ["-I/Users/sander/.cache/uv/archive-v0/3TQWJN4SjXSTw9221a1vq/pybind11/include"]

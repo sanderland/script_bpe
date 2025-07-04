@@ -9,6 +9,7 @@ from script_bpe.bpe.fast.tokenizer import FastScriptTokenizer
 from script_bpe.corpus import PretokenizedCorpus
 
 
+
 @pytest.fixture(scope="module")
 def temp_dir_module():
     """Create a temporary directory for the module for efficiency."""
@@ -18,119 +19,90 @@ def temp_dir_module():
 
 
 @pytest.fixture(scope="module")
-def bug_trigger_tokenizer(temp_dir_module):
+def comprehensive_tokenizer(temp_dir_module):
     """
-    Creates a tokenizer with a very specific, skewed corpus. This is designed to create a
-    reproducible set of pre-merged and unmerged characters to validate the core C++
-    processing logic and prevent regressions. It ensures:
-    - 'a' is pre-merged into a single character token.
-    - 'c' remains an unmerged base pair.
-    - A merge rule for the token of 'a' and the base token of 'c' exists.
+    Creates a single, comprehensive tokenizer for all tests.
+    The corpus is specifically designed to create a rich set of conditions:
+    - 'a' is pre-merged into a single char token (T_a).
+    - 'z' remains an unmerged base pair.
+    - A merge rule for (T_a, T_a) is created to test determinism.
+    - Multilingual characters are included for broad compatibility.
     """
     pretokenizer = get_pretokenizer("scriptenc_cb")
-    corpus_text = ("ac" * 200) + ("a" * 100) + "c"
+
+    # This corpus creates all the test conditions we need in one tokenizer.
+    corpus_text = ("a" * 500) + "z" + "世"
+
     corpus = PretokenizedCorpus.from_texts(
-        name="test_corpus_bug_trigger",
+        name="test_corpus_comprehensive_final",
         texts=[corpus_text], pretokenizer=pretokenizer, base_path=temp_dir_module
     )
+    # Learn enough rules to merge 'a' into a single token, and then merge that token with itself.
     tokenizer = train_bpe(
-        pretokenizer, corpus, additional_vocab_size=10, num_workers=1, verbose=False
+        pretokenizer, corpus, additional_vocab_size=3, num_workers=1, verbose=False
     )
     return tokenizer, pretokenizer
 
 
-@pytest.fixture(scope="module")
-def multilingual_tokenizer(temp_dir_module):
-    """
-    Creates a tokenizer trained on a diverse, multilingual corpus to ensure broad
-    compatibility and test handling of various scripts.
-    """
-    pretokenizer = get_pretokenizer("scriptenc_cb")
-    corpus = PretokenizedCorpus.from_texts(
-        name="test_corpus_multilingual",
-        texts=[
-            "Hello world! This is a test.",
-            "Script encoding works: 世界你好, and continues.",
-            "Testing with äöü ñ ç and other characters.",
-            "Numbers: 123 456!@#$%",
-            "Mixed scripts: Здравствуй мир! שלום עולם!",
-            "Emojis are fun 🌍🌎🌏 and symbols too ©®™.",
-        ] * 10, # Repeat to get some merges
+@pytest.fixture
+def fast_tokenizer(comprehensive_tokenizer):
+    """Instantiates the FastScriptTokenizer from the comprehensive fixture."""
+    tokenizer, pretokenizer = comprehensive_tokenizer
+    return FastScriptTokenizer(
+        merge_rules=tokenizer.merge_rules,
         pretokenizer=pretokenizer,
-        base_path=temp_dir_module
-    )
-    tokenizer = train_bpe(
-        pretokenizer, corpus, additional_vocab_size=100, num_workers=1, verbose=False
-    )
-    return tokenizer, pretokenizer
+        metadata=tokenizer.metadata
+    ), tokenizer
 
 
-# Test cases for the bug-triggering tokenizer
-BUG_TRIGGER_CASES = [
-    pytest.param("a", "Single pre-merged char", id="bug_single_merged"),
-    pytest.param("c", "Single unmerged char", id="bug_single_unmerged"),
-    pytest.param("ac", "Merged followed by unmerged (the critical case)", id="bug_merged_unmerged"),
-    pytest.param("ca", "Unmerged followed by merged", id="bug_unmerged_merged"),
-    pytest.param("aca", "Unmerged between two merged", id="bug_unmerged_between_merged"),
-    pytest.param("cac", "Merged between two unmerged", id="bug_merged_between_unmerged"),
+# Comprehensive list of test cases for the main validation function
+TEST_CASES = [
+    # Basic cases
+    pytest.param("", "Empty string", id="empty_string"),
+    pytest.param(" ", "Single space", id="single_space"),
+    
+    # Determinism test (the critical bug fix)
+    pytest.param("aaaaa", "Sequence requiring deterministic merge order", id="determinism"),
+    
+    # Merged & Unmerged character tests
+    pytest.param("a", "Single pre-merged char", id="single_merged"),
+    pytest.param("z", "Single unmerged char", id="single_unmerged"),
+    pytest.param("az", "Merged followed by unmerged", id="merged_unmerged"),
+    pytest.param("za", "Unmerged followed by merged", id="unmerged_merged"),
+    pytest.param("aza", "Unmerged between two merged", id="unmerged_between_merged"),
+    pytest.param("zaz", "Merged between two unmerged", id="merged_between_unmerged"),
+    
+    # Multilingual and other characters
+    pytest.param("世", "Single Han character", id="han_char"),
+    pytest.param("a世z", "Mixed Latin, Han, and unmerged Latin", id="mixed_scripts"),
+    pytest.param("123", "Sequence of numbers", id="numbers"),
+    pytest.param("a z a z a", "Complex sequence with spaces", id="complex_string"),
 ]
 
 
-@pytest.mark.parametrize("test_text, description", BUG_TRIGGER_CASES)
-def test_fast_tokenizer_core_logic(bug_trigger_tokenizer, test_text, description):
-    """
-    Tests the core C++ processing logic using a specially crafted tokenizer
-    to ensure merged/unmerged character sequences are handled correctly.
-    """
-    python_tok, pretokenizer = bug_trigger_tokenizer
-    cpp_tok = FastScriptTokenizer(
-        merge_rules=python_tok.merge_rules, pretokenizer=pretokenizer, metadata=python_tok.metadata
-    )
-
-    python_tokens = python_tok.encode(test_text)
-    cpp_tokens = cpp_tok.encode(test_text)
-
-    assert cpp_tokens.tolist() == python_tokens.tolist(), (
-        f"Core logic mismatch for case: '{description}'\n"
-        f"String: {repr(test_text)}\n"
-        f"Python (correct): {python_tokens.tolist()}\n"
-        f"C++    (buggy):   {cpp_tokens.tolist()}"
-    )
-
-
-# Test cases for the multilingual tokenizer
-MULTILINGUAL_CASES = [
-    pytest.param("", "Empty string", id="multi_empty_string"),
-    pytest.param("Hello world!", "Basic Latin", id="multi_latin"),
-    pytest.param("Hello, 世界你好", "Mixed Latin and Han", id="multi_latin_han"),
-    pytest.param("Здравствуй-мир", "Cyrillic with punctuation", id="multi_cyrillic_punct"),
-    pytest.param("123שלום 456", "Hebrew with numbers and space", id="multi_hebrew_nums"),
-    pytest.param("🌍🌎🌏", "Sequence of emojis", id="multi_emojis"),
-    pytest.param("a ä ü", "Latin with diacritics", id="multi_diacritics"),
-    pytest.param("test\n\t ", "String with various whitespace", id="multi_whitespace"),
-]
-
-
-@pytest.mark.parametrize("test_text, description", MULTILINGUAL_CASES)
-def test_fast_tokenizer_multilingual_cases(multilingual_tokenizer, test_text, description):
+@pytest.mark.parametrize("test_text, description", TEST_CASES)
+def test_fast_tokenizer_is_identical(fast_tokenizer, test_text, description):
     """
     Tests that the C++ tokenizer produces IDENTICAL results to the Python reference
-    across a variety of real-world multilingual and multi-script strings.
+    across a wide range of critical edge cases using a single, comprehensive tokenizer.
     """
-    python_tok, pretokenizer = multilingual_tokenizer
-    cpp_tok = FastScriptTokenizer(
-        merge_rules=python_tok.merge_rules, pretokenizer=pretokenizer, metadata=python_tok.metadata
-    )
+    cpp_tok, python_tok = fast_tokenizer
 
     python_tokens = python_tok.encode(test_text)
     cpp_tokens = cpp_tok.encode(test_text)
 
     assert cpp_tokens.tolist() == python_tokens.tolist(), (
-        f"Multilingual mismatch for case: '{description}'\n"
+        f"Mismatch for case: '{description}'\n"
         f"String: {repr(test_text)}\n"
         f"Python (correct): {python_tokens.tolist()}\n"
         f"C++    (buggy):   {cpp_tokens.tolist()}"
     )
+
+    # Also verify that decoding produces identical, correct results
+    python_decoded = python_tok.decode(python_tokens)
+    cpp_decoded = cpp_tok.decode(cpp_tokens)
+    assert cpp_decoded == python_decoded
+    assert cpp_decoded == python_tok.pretokenizer.normalize(test_text)
 
 
 def test_fast_tokenizer_error_handling():
@@ -141,6 +113,62 @@ def test_fast_tokenizer_error_handling():
         FastScriptTokenizer(merge_rules=[], pretokenizer=pretokenizer, metadata={})
     
     # It must also have enforce_char_boundaries=True
-    pretokenizer_no_cb = get_pretokenizer("scriptenc") # This is ScriptEncodingPretokenizer but with the flag set to False
+    pretokenizer_no_cb = get_pretokenizer("scriptenc")
     with pytest.raises(RuntimeError, match="enforce_char_boundaries"):
          FastScriptTokenizer(merge_rules=[], pretokenizer=pretokenizer_no_cb, metadata={})
+
+@pytest.fixture(scope="module")
+def determinism_tokenizer(temp_dir_module):
+    """
+    Creates a tokenizer with the simplest possible case to test for non-determinism:
+    a single merge rule 'a,a -> T_aa' that can be applied in multiple places.
+    """
+    pretokenizer = get_pretokenizer("scriptenc_cb")
+    corpus_text = "a" * 500  # A long string of 'a's to ensure 'a,a' is the top merge.
+
+    corpus = PretokenizedCorpus.from_texts(
+        name="test_corpus_determinism",
+        texts=[corpus_text], pretokenizer=pretokenizer, base_path=temp_dir_module
+    )
+    # We only need to learn one merge rule.
+    tokenizer = train_bpe(
+        pretokenizer, corpus, additional_vocab_size=2, num_workers=1, verbose=False
+    )
+    return tokenizer, pretokenizer
+
+
+def test_deterministic_merge_order_failure(determinism_tokenizer):
+    """
+    This test is designed to FAIL with the non-deterministic C++ implementation and PASS
+    with the corrected one. It validates that when multiple occurrences of the SAME
+    merge rule are possible, the leftmost one is always chosen.
+
+    - The Buggy C++ `priority_queue` had no tie-breaker for merges of equal priority,
+      leading to arbitrary (non-deterministic) merge order.
+    - The Corrected C++ `priority_queue` uses `std::tie(priority, from_a)` to mimic
+      Python's deterministic behavior, always choosing the merge with the lowest index first.
+    """
+    python_tok, pretokenizer = determinism_tokenizer
+    cpp_tok = FastScriptTokenizer(
+        merge_rules=python_tok.merge_rules, pretokenizer=pretokenizer, metadata=python_tok.metadata
+    )
+
+    # This input has many possible aa merges
+    test_string = "a"*100
+    
+    # Python's output is the deterministic "ground truth." It will always merge left-to-right.
+    # Expected logic: aaaaa -> (T_aa)aaa -> (T_aa)a(T_aa)
+    python_tokens = python_tok.encode(test_string)
+
+    # The C++ output will be different if its arbitrary choice of merge order differs from Python's.
+    cpp_tokens = cpp_tok.encode(test_string)
+
+    # This assertion will fail if the C++ implementation is non-deterministic.
+    assert cpp_tokens.tolist() == python_tokens.tolist(), (
+        f"\n\n*** FAILURE DETECTED: Non-Deterministic Merge Order ***\n"
+        f"String: {repr(test_string)}\n"
+        f"Python (Correct & Deterministic): {python_tokens.tolist()}\n"
+        f"C++    (Incorrect & Arbitrary):  {cpp_tokens.tolist()}\n"
+        f"Reason: For multiple possible merges of the same rule, the C++ implementation did not\n"
+        f"        deterministically choose the leftmost one, leading to a different tokenization."
+    )

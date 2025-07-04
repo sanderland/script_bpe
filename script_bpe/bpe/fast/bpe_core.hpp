@@ -7,6 +7,7 @@
 #include <utility>
 #include <functional>
 #include <cstdint>
+#include <tuple>
 
 // Custom hash function for std::pair<int, int> for merge lookup
 namespace std {
@@ -40,7 +41,7 @@ namespace script_bpe {
             int to_id;
             
             bool operator<(const MergeItem& other) const {
-                return priority > other.priority; // Min heap (lower priority first)
+                return std::tie(priority, from_a) < std::tie(other.priority, other.from_a);
             }
         };
         

@@ -31,13 +31,13 @@ namespace script_bpe {
             }
         }
         apply_bpe_merging(token_array, start, end); // last pretoken
-        remove_gaps(token_array);
+        remove_gaps(token_array, end);
         return token_array;
     }
 
-    void FastTokenizer::remove_gaps(std::vector<int>& token_array) {
+    void FastTokenizer::remove_gaps(std::vector<int>& token_array, int end) {
         int write_pos = 0;
-        for (int read_pos = 0; read_pos < static_cast<int>(token_array.size()); ++read_pos) {
+        for (int read_pos = 0; read_pos < end; ++read_pos) {
             if (token_array[read_pos] != -1) token_array[write_pos++] = token_array[read_pos];
         }
         token_array.resize(write_pos);
@@ -51,8 +51,6 @@ namespace script_bpe {
         
         // Find all possible merges in this chunk - use consecutive individual tokens
         for (int i = start; i < end - 1; ++i) {
-            if (token_array[i] == -1 || token_array[i+1] == -1) continue;
-            
             // Create pairs for merging: (token1, token2)
             std::pair<int, int> merge_key = {token_array[i], token_array[i+1]};
             auto it = merge_rules_.find(merge_key);
@@ -72,7 +70,6 @@ namespace script_bpe {
         while (!merge_heap.empty()) {
             FastTokenizer::MergeItem item = merge_heap.top();
             merge_heap.pop();
-            
             // Verify merge is still valid
             if (token_array[item.from_a] != item.val_a || 
                 token_array[item.from_b] != item.val_b) continue;

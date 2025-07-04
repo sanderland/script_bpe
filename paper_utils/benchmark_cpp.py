@@ -139,7 +139,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n-docs",
         type=int,
-        default=1000,
+        default=10000,
         help="Number of documents from each corpus to use for testing.",
     )
     parser.add_argument(

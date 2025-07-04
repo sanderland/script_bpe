@@ -40,8 +40,8 @@ namespace script_bpe {
             int val_b;
             int to_id;
             
-            bool operator<(const MergeItem& other) const {
-                return std::tie(priority, from_a) < std::tie(other.priority, other.from_a);
+            bool operator<(const MergeItem& other) const { // min heap
+                return std::tie(priority, from_a) > std::tie(other.priority, other.from_a);
             }
         };
         
@@ -61,6 +61,6 @@ namespace script_bpe {
         void apply_bpe_merging(std::vector<int>& token_array, int start, int end);
         void find_and_add_new_merges(const std::vector<int>& tokens, int merge_pos, 
                                      std::priority_queue<FastTokenizer::MergeItem>& merge_heap);
-        void remove_gaps(std::vector<int>& token_array);
+        void remove_gaps(std::vector<int>& token_array, int end);
     };
 }

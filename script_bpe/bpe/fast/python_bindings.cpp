@@ -11,11 +11,7 @@ PYBIND11_MODULE(fast_tokenizer_cpp, m) {
     
     // Expose CharSCRIPTEnc struct to Python
     py::class_<script_bpe::CharSCRIPTEnc>(m, "CharSCRIPTEnc")
-        .def(py::init<int, int, int, int>())
-        .def_readwrite("script_id", &script_bpe::CharSCRIPTEnc::script_id)
-        .def_readwrite("block_id", &script_bpe::CharSCRIPTEnc::block_id)
-        .def_readwrite("index_id", &script_bpe::CharSCRIPTEnc::index_id)
-        .def_readwrite("char_token_id", &script_bpe::CharSCRIPTEnc::char_token_id);
+        .def(py::init<int, int, int, int>());
     
     py::class_<script_bpe::FastTokenizer>(m, "FastTokenizer")
         .def(py::init<const std::unordered_map<char32_t, script_bpe::CharSCRIPTEnc>&,

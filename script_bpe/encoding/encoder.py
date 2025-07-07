@@ -47,7 +47,7 @@ def supercategory(category):
         return "LM"  # Letter/Non-spacing Mark (like accept modifiers)
     return sc
 
-
+@functools.cache
 def unicode_script_map(filename=SCRIPTS_PATH) -> dict[str, dict[str, str]]:
     """
     Load Unicode script and category data from a file.

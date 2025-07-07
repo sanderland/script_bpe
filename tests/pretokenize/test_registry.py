@@ -26,3 +26,8 @@ def test_pretokenizers_in_registry(pretokenizer_name):
         assert decoded_string == pretokenizer.normalize(
             s
         ), f"Failed for pretokenizer: {pretokenizer_name} on string: {s!r}"
+
+    # test normalization does not remove unicode 16.0 introduced characters
+    assert pretokenizer.normalize("1 \U000142aa ") == "1 \U000142aa "
+    # Cn: Not Assigned (U+0378)  Co: Private Use (U+E000)   Cs: Surrogate (U+D800)
+    assert pretokenizer.normalize(":\u0378\uE000)\uD800") == ":)"

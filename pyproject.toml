@@ -31,8 +31,5 @@ line-length = 120
 profile="black"
 
 [build-system]
-requires = ["setuptools>=61.0", "pybind11>=2.11"] 
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages.find]
-include = ["script_bpe*"]
+requires = ["scikit-build-core", "pybind11"]
+build-backend = "scikit_build_core.build"

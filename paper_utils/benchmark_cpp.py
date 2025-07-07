@@ -11,8 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from script_bpe.bpe import BPETokenizer
 from script_bpe.bpe.fast.tokenizer import FastScriptTokenizer
 
-# List of monolingual corpora based on the directory structure provided
-MONOLINGUAL_CORPORA = [
+MONOLINGUAL_CORPORA = [(c,64000) for c in [
     "eng_latn_300mb",
     "deu_latn_300mb",
     "vie_latn_300mb",
@@ -25,9 +24,11 @@ MONOLINGUAL_CORPORA = [
     "kor_hang_300mb",
     "jpn_jpan_300mb",
     "zho_hans_300mb",
+]]
+MULTILINGUAL_CORPORA = [
+    ("CulturaX-subsample-100-bal2", 256000)
 ]
 TOKENIZER_BASE_PATH = "results/tokenizers"
-#MONOLINGUAL_CORPORA = ["deu_latn_300mb"]
 
 def time_encoding(tokenizer, texts: list[str]) -> tuple[float, int, list[list[int]]]:
     """
@@ -46,29 +47,27 @@ def time_encoding(tokenizer, texts: list[str]) -> tuple[float, int, list[list[in
     duration = end_time - start_time
     return duration, total_tokens, tokenized
 
-def main(args):
+def main(args, corpora):
     """Main function to run the benchmark."""
     results = []
     print(f"--- Tokenizer Speed Benchmark ---")
-    print(f"Comparing Python vs. C++ on {len(MONOLINGUAL_CORPORA)} corpora.")
-    print(f"Using first {args.n_docs} documents from each corpus.")
-    print(f"Tokenizer: {args.tokenizer_name} (n={args.vocab_size})\n")
+    print(f"Comparing Python vs. C++ on {len(corpora)} corpora.")
+    print(f"Using first {args.n_docs:,d} documents from each corpus.")
 
-    for corpus_name in MONOLINGUAL_CORPORA:
+    for corpus_name, vocab_size in corpora:
         # Consistent width for emoji and log text
         log_width = 32
         def elog(emoji, msg):
             return f"  {emoji:<3} {msg:<{log_width}}"
 
-        print(f"\n{elog('🔍', f"Processing '{corpus_name}'...")}")
-
+        print(f"\n{elog('🔍', f"Processing '{corpus_name}'...")} with Tokenizer: {args.tokenizer_name} (n={vocab_size:,d})")
         # 1. Load the tokenizers
         tokenizer_file = args.tokenizer_name
         if not tokenizer_file.endswith(".json.gz"):
             tokenizer_file += ".json.gz"
 
         tokenizer_path = os.path.join(
-            TOKENIZER_BASE_PATH, corpus_name, f"n{args.vocab_size}", tokenizer_file
+            TOKENIZER_BASE_PATH, corpus_name, f"n{vocab_size}", tokenizer_file
         )
         if not os.path.exists(tokenizer_path):
             print(elog('⚠️', f"SKIPPING: Tokenizer not found at {tokenizer_path}"))
@@ -83,26 +82,33 @@ def main(args):
 
         # 2. Load the test data efficiently
         print(elog('💾', "Loading dataset..."))
-        dataset = load_dataset(
-            "catherinearnett/monolingual-tokenizer-data",
-            data_files=[f"{corpus_name}.txt"],
-            split="train",
-            streaming=True,
-        )
+        if "CulturaX" in corpus_name:
+            dataset = load_dataset(
+                f"sanderland/{corpus_name}",
+                split="train",
+                streaming=True,
+            )
+        else:
+            dataset = load_dataset(
+                "catherinearnett/monolingual-tokenizer-data",
+                data_files=[f"{corpus_name}.txt"],
+                split="train",
+                streaming=True,
+            )
         test_texts = [doc['text'] for doc in dataset.take(args.n_docs)]
 
         # 3. Run benchmarks
         print(elog('🐍', "Benchmarking Python implementation..."))
         py_time, total_tokens, py_tokenized = time_encoding(python_tokenizer, test_texts)
 
-        print(elog('🅲➕➕',"Benchmarking C++ implementation... 🚀"))
+        print(elog('➕',"Benchmarking C++ implementation... 🚀"))
         cpp_time, _, cpp_tokenized = time_encoding(cpp_tokenizer, test_texts)
 
         n_mismatches = 0
         if any(len(py_tok_i)!=len(cpp_tok_i) or (py_tok_i != cpp_tok_i).any() for py_tok_i, cpp_tok_i in zip(py_tokenized, cpp_tokenized)):
             print(elog('❌', "Tokenization mismatch"))
             for i in range(len(py_tokenized)):
-                if (py_tokenized[i] != cpp_tokenized[i]).any():
+                if len(py_tokenized[i]) != len(cpp_tokenized[i]) or (py_tokenized[i] != cpp_tokenized[i]).any():
                     n_mismatches += 1
                     print(f"    {'❌':<2} Mismatch at index {i}")
                     print(f"      Python: {py_tokenized[i]}")
@@ -115,10 +121,15 @@ def main(args):
                         print(f"      C++ decoded   : {cpp_decoded!r}")
                     else:
                         print(f"      C++ decoded   Matches Python")
+                    stop_i = 1e9
                     for ti, (tpy, tcpp) in enumerate(zip(py_tokenized[i], cpp_tokenized[i])):
-                        mm =  "❌" if tpy != tcpp else "✅"
-                        print(f"      {mm} {ti}: py {tpy}  {python_tokenizer.decode([tpy])!r} cpp {tcpp} {cpp_tokenizer.decode([tcpp])!r} {mm}")
-                        if tpy!=tcpp:
+                        if tpy != tcpp:
+                          mm =  "❌"
+                          stop_i = min(stop_i, ti+5)
+                        else:
+                          mm = "✅"
+                        print(f"      {mm} {ti}: py {tpy}  {python_tokenizer.decode([tpy], errors='backslashreplace')!r} cpp {tcpp} {cpp_tokenizer.decode([tcpp], errors='backslashreplace')!r} {mm}")
+                        if ti > stop_i:
                             break
 
         # 4. Calculate and store results
@@ -162,20 +173,28 @@ if __name__ == "__main__":
         "--n-docs",
         "-n",
         type=int,
-        default=10000,
+        default=1_000_000_000,
         help="Number of documents from each corpus to use for testing.",
     )
-    parser.add_argument(
-        "--vocab-size",
-        type=int,
-        default=64000,
-        help="The vocabulary size 'n' used in the tokenizer path (e.g., n64000).",
-    )
+
     parser.add_argument(
         "--tokenizer-name",
         type=str,
         default="scriptenc_cb",
         help="The name of the tokenizer file to test (e.g., 'scriptenc_cb').",
     )
+    parser.add_argument(
+        "--corpora",
+        type=str,
+        default="monolingual",
+        choices=["monolingual", "multilingual","all"],
+    )
+    if parser.parse_known_args()[0].corpora == "monolingual":
+        corpora = MONOLINGUAL_CORPORA
+    elif parser.parse_known_args()[0].corpora == "multilingual":
+        corpora = MULTILINGUAL_CORPORA
+    else:
+        assert parser.parse_known_args()[0].corpora == "all", "Invalid corpora option"
+        corpora = MONOLINGUAL_CORPORA + MULTILINGUAL_CORPORA
     args = parser.parse_args()
-    main(args)
+    main(args, corpora)

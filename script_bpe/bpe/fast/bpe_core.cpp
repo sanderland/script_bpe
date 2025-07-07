@@ -1,14 +1,22 @@
+
 #include "bpe_core.hpp"
+#include "absl/container/flat_hash_map.h"
 
 namespace script_bpe {
-    FastTokenizer::FastTokenizer(const std::unordered_map<char32_t, CharSCRIPTEnc>& char_script_enc,
-                                 const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules)
-        : char_script_enc_(char_script_enc), merge_rules_(merge_rules) {
+        FastTokenizer::FastTokenizer(const std::unordered_map<char32_t, CharSCRIPTEnc>& char_script_enc,
+                                                                 const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules)
+                : char_script_enc_(char_script_enc.begin(), char_script_enc.end()),
+                    merge_rules_(merge_rules.begin(), merge_rules.end()) {
         whitespace_script_id_ = char_script_enc_.find(U' ')->second.script_id;
-        inherited_lm_script_id_ = char_script_enc_.find(U'ー')->second.script_id; // example for Japanese long vowel mark
-        inherited_c_script_id_ = char_script_enc_.find(U'\u200d')->second.script_id; // example for zero-width joiner
-        han_script_id_ = char_script_enc_.find(U'漢')->second.script_id;
-        hiragana_script_id_ = char_script_enc_.find(U'ひ')->second.script_id;
+        inherited_script_id_ = char_script_enc_.find(U'ー')->second.script_id; // example for Japanese long vowel mark
+        auto& inherited_c_script_id_ = char_script_enc_.find(U'\u200d')->second.script_id; // example for zero-width joiner
+        auto& han_script_id_ = char_script_enc_.find(U'漢')->second.script_id;
+        auto& hiragana_script_id_ = char_script_enc_.find(U'ひ')->second.script_id;
+        // re-code hiragana to han and inherited(c) to inherited(lm)
+        for (auto& it : char_script_enc_) {
+            if (it.second.script_id == hiragana_script_id_) it.second.script_id = han_script_id_;
+            if (it.second.script_id == inherited_c_script_id_) it.second.script_id = inherited_script_id_;
+        }
         worker_state_ = WorkerState(); // Initialize merge heap and token array
         worker_state_.token_array.resize(4096); // Reserve initial size
     }
@@ -30,9 +38,7 @@ namespace script_bpe {
                 continue;
             }
             auto& script_id = it->second.script_id;
-            if(script_id != last_script_id && script_id!=inherited_lm_script_id_ && script_id!=inherited_c_script_id_
-               && !(script_id==han_script_id_ && last_script_id==hiragana_script_id_)
-               && !(script_id==hiragana_script_id_ && last_script_id==han_script_id_)) { // new pretoken
+            if(script_id != last_script_id && script_id != inherited_script_id_) { // new pretoken
                 if(last_script_id == whitespace_script_id_ && end-start==1) {
                     last_script_id = script_id; // single space, include, but set script id to non-space
                 }

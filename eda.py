@@ -14,6 +14,10 @@ text ='seit langem ̶ durchaus offensiv'
 text = "ます🙇\u200d♀️"
 corpus_name = 'jpn_jpan_300mb'
 
+text = "\n1  koppie farro\n2 koppies grondboontjie"
+corpus_name = "CulturaX-subsample-100-bal2"
+vocab_size = 256000
+
 tokenizer_path = os.path.join(
     TOKENIZER_BASE_PATH, corpus_name, f"n{vocab_size}", tokenizer_file
 )

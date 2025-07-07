@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <queue>
 #include <string>
 #include <utility>
@@ -13,18 +13,7 @@
 #include <pybind11/numpy.h>
 namespace py = pybind11;
 
-/*
-// Custom hash function for std::pair<int, int> for merge lookup
-namespace std {
-    template<>
-    struct hash<pair<int, int>> {
-        size_t operator()(const pair<int, int>& p) const {
-            auto h1 = hash<int>{}(p.first);
-            auto h2 = hash<int>{}(p.second);
-            return h1 ^ (h2 << 1);
-        }
-    };
-}*/
+
 namespace std {
     template<>
     struct hash<pair<int, int>> {
@@ -71,16 +60,16 @@ namespace script_bpe {
 
     public:
         // Constructor
-        FastTokenizer(const std::unordered_map<char32_t, CharSCRIPTEnc>& char_script_enc,
-                     const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules);
+    FastTokenizer(const std::unordered_map<char32_t, CharSCRIPTEnc>& char_script_enc,
+             const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules);
         
         py::array_t<int> encode(const std::u32string& text);
         
     private:
         // Core data structures
-        std::unordered_map<char32_t, CharSCRIPTEnc> char_script_enc_;
-        std::unordered_map<std::pair<int, int>, std::pair<int, int>> merge_rules_;
-        int whitespace_script_id_, inherited_lm_script_id_, inherited_c_script_id_, han_script_id_, hiragana_script_id_;
+    absl::flat_hash_map<char32_t, CharSCRIPTEnc> char_script_enc_;
+    absl::flat_hash_map<std::pair<int, int>, std::pair<int, int>> merge_rules_;
+        int whitespace_script_id_, inherited_script_id_;
         WorkerState worker_state_;
         // Core processing functions
         void apply_bpe_merging(WorkerState& worker_state, int start, int end);

@@ -13,6 +13,7 @@
 #include <pybind11/numpy.h>
 namespace py = pybind11;
 
+/*
 // Custom hash function for std::pair<int, int> for merge lookup
 namespace std {
     template<>
@@ -21,6 +22,20 @@ namespace std {
             auto h1 = hash<int>{}(p.first);
             auto h2 = hash<int>{}(p.second);
             return h1 ^ (h2 << 1);
+        }
+    };
+}*/
+namespace std {
+    template<>
+    struct hash<pair<int, int>> {
+        // A higher-quality hash combiner
+        size_t operator()(const pair<int, int>& p) const {
+            size_t h1 = hash<int>{}(p.first);
+            size_t h2 = hash<int>{}(p.second);
+
+            // A good way to combine hashes to minimize collisions, from Boost
+            // See https://www.boost.org/doc/libs/1_55_0/doc/html/hash/reference.html#boost.hash_combine
+            return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
         }
     };
 }

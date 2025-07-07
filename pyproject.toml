@@ -1,6 +1,6 @@
 [project]
 name = "script_bpe"
-version = "0.5.0"
+version = "0.6.0"
 description = "BPE with support for SCRIPT encoding"
 authors = [
     {name = "Sander Land", email = "sander@cohere.com"},
@@ -21,8 +21,6 @@ dependencies = [
     "pybind11>=2.10.0",
 ]
 
-
-
 [project.scripts]
 train = "script_bpe.train:main"
 
@@ -33,14 +31,8 @@ line-length = 120
 profile="black"
 
 [build-system]
-requires = ["setuptools>=45", "pybind11>=2.10.0"]
+requires = ["setuptools>=61.0", "pybind11>=2.11"] 
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["script_bpe*"]
-
-[[tool.setuptools.ext-modules]]
-name = "script_bpe.bpe.fast.fast_tokenizer_cpp"
-sources = ["script_bpe/bpe/fast/python_bindings.cpp", "script_bpe/bpe/fast/bpe_core.cpp"]
-language = "c++"
-extra-compile-args = ["-I/Users/sander/.cache/uv/archive-v0/3TQWJN4SjXSTw9221a1vq/pybind11/include"]

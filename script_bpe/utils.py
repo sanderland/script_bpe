@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import unicodedata
+from script_bpe.encoding.encoder import unicode_script_map
 from typing import Iterable
 
 # one dir lower than this script
@@ -64,11 +65,9 @@ UNASSIGNED_CATEGORIES = {"Cn", "Co", "Cs"}  # we ignore Cn=Not Assigned, Co=Priv
 def remove_unassigned_private_surrogate(s):
     return "".join(c for c in s if not is_unassigned_private_surrogate(c))
 
-
 @functools.cache
 def is_unassigned_private_surrogate(char):
-    return unicodedata.category(char) in UNASSIGNED_CATEGORIES
-
+    return char not in unicode_script_map()
 
 @functools.cache
 def utf_byte_type(b: int) -> int:

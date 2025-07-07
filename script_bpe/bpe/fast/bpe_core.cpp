@@ -23,6 +23,8 @@ namespace script_bpe {
         size_t start = 0, end = 0;
         int last_script_id = -1;
         std::vector<int> token_array(text.length()*2, -1);
+        // Build priority queue for merges and reuse it
+        std::priority_queue<FastTokenizer::MergeItem> merge_heap;        
 
         for(size_t ci = 0; ci < text.length(); ci++) {
             auto it = char_script_enc_.find(text[ci]);
@@ -37,7 +39,7 @@ namespace script_bpe {
                     last_script_id = script_id; // single space, include, but set script id to non-space
                 }
                 else {
-                    apply_bpe_merging(token_array, start, end); // apply BPE merging to previous pretoken
+                    apply_bpe_merging(merge_heap, token_array, start, end); // apply BPE merging to previous pretoken
                     start = end; // reset start for new pretoken
                     last_script_id = script_id;
                 }
@@ -50,7 +52,7 @@ namespace script_bpe {
                 token_array[end++] = it->second.char_token_id;
             }
         }
-        apply_bpe_merging(token_array, start, end); // last pretoken
+        apply_bpe_merging(merge_heap, token_array, start, end); // last pretoken
         remove_gaps(token_array, end);
         return token_array;
     }
@@ -65,11 +67,8 @@ namespace script_bpe {
         token_array.resize(write_pos);
     }
 
-    void FastTokenizer::apply_bpe_merging(std::vector<int>& token_array, int start, int end) {
+    inline void FastTokenizer::apply_bpe_merging(std::priority_queue<FastTokenizer::MergeItem>& merge_heap, std::vector<int>& token_array, int start, int end) {
         if (end - start < 2) return; // Need at least 2 tokens to merge
-        
-        // Build priority queue for merges
-        std::priority_queue<FastTokenizer::MergeItem> merge_heap;
         
         // Find all possible merges in this chunk - use consecutive individual tokens
         for (int i = start; i < end - 1; ++i) {

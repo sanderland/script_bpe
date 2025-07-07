@@ -58,7 +58,7 @@ namespace script_bpe {
         std::unordered_map<char32_t, CharSCRIPTEnc> char_script_enc_;
         int whitespace_script_id_, inherited_lm_script_id_, inherited_c_script_id_, han_script_id_, hirana_script_id_;
         // Core processing functions
-        void apply_bpe_merging(std::vector<int>& token_array, int start, int end);
+        void apply_bpe_merging(std::priority_queue<FastTokenizer::MergeItem>& merge_heap, std::vector<int>& token_array, int start, int end);
         void find_and_add_new_merges(const std::vector<int>& tokens, int start, int end, int from_a, int from_b,
                                      std::priority_queue<FastTokenizer::MergeItem>& merge_heap);
         void remove_gaps(std::vector<int>& token_array, int end);

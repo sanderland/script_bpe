@@ -58,7 +58,7 @@ def main(args):
         # Consistent width for emoji and log text
         log_width = 32
         def elog(emoji, msg):
-            return f"  {emoji:<2} {msg:<{log_width}}"
+            return f"  {emoji:<3} {msg:<{log_width}}"
 
         print(f"\n{elog('🔍', f"Processing '{corpus_name}'...")}")
 
@@ -95,7 +95,7 @@ def main(args):
         print(elog('🐍', "Benchmarking Python implementation..."))
         py_time, total_tokens, py_tokenized = time_encoding(python_tokenizer, test_texts)
 
-        print(elog('🅲', "➕➕ Benchmarking C++ implementation... 🚀"))
+        print(elog('🅲➕➕',"Benchmarking C++ implementation... 🚀"))
         cpp_time, _, cpp_tokenized = time_encoding(cpp_tokenizer, test_texts)
 
         n_mismatches = 0

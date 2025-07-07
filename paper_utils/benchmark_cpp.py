@@ -99,10 +99,10 @@ def main(args):
         cpp_time, _, cpp_tokenized = time_encoding(cpp_tokenizer, test_texts)
 
         n_mismatches = 0
-        if py_tokenized != cpp_tokenized:
+        if any(len(py_tok_i)!=len(cpp_tok_i) or (py_tok_i != cpp_tok_i).any() for py_tok_i, cpp_tok_i in zip(py_tokenized, cpp_tokenized)):
             print(elog('❌', "Tokenization mismatch"))
             for i in range(len(py_tokenized)):
-                if py_tokenized[i] != cpp_tokenized[i]:
+                if (py_tokenized[i] != cpp_tokenized[i]).any():
                     n_mismatches += 1
                     print(f"    {'❌':<2} Mismatch at index {i}")
                     print(f"      Python: {py_tokenized[i]}")

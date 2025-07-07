@@ -1,5 +1,7 @@
  
 import unicodedata
+
+import numpy as np
 from script_bpe.bpe.tokenizer import BPETokenizer
 from script_bpe.pretokenize import BasePretokenizer, ScriptEncodingPretokenizer
 from script_bpe.utils import TokenSeq, token_array
@@ -28,7 +30,6 @@ class FastScriptTokenizer(BPETokenizer):
             self._merge_rules_dict,
         )
     
-    def encode(self, text: str) -> TokenSeq:
+    def encode(self, text: str) -> np.ndarray:
         normalized = unicodedata.normalize('NFC', text)
-        encoded_tokens = self._cpp_fast_tokenizer.encode(normalized)
-        return token_array(encoded_tokens)
+        return self._cpp_fast_tokenizer.encode(normalized)

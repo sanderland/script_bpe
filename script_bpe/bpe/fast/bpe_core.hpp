@@ -9,6 +9,10 @@
 #include <cstdint>
 #include <tuple>
 
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+namespace py = pybind11;
+
 // Custom hash function for std::pair<int, int> for merge lookup
 namespace std {
     template<>
@@ -44,23 +48,28 @@ namespace script_bpe {
                 return std::tie(priority, from_a) > std::tie(other.priority, other.from_a);
             }
         };
-        
+
+        struct WorkerState {
+            std::priority_queue<FastTokenizer::MergeItem> merge_heap;
+            std::vector<int> token_array;
+        };        
+
     public:
         // Constructor
         FastTokenizer(const std::unordered_map<char32_t, CharSCRIPTEnc>& char_script_enc,
                      const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules);
         
-        std::vector<int> encode(const std::u32string& text);
+        py::array_t<int> encode(const std::u32string& text);
         
     private:
         // Core data structures
-        std::unordered_map<std::pair<int, int>, std::pair<int, int>> merge_rules_;
         std::unordered_map<char32_t, CharSCRIPTEnc> char_script_enc_;
-        int whitespace_script_id_, inherited_lm_script_id_, inherited_c_script_id_, han_script_id_, hirana_script_id_;
+        std::unordered_map<std::pair<int, int>, std::pair<int, int>> merge_rules_;
+        int whitespace_script_id_, inherited_lm_script_id_, inherited_c_script_id_, han_script_id_, hiragana_script_id_;
+        WorkerState worker_state_;
         // Core processing functions
-        void apply_bpe_merging(std::priority_queue<FastTokenizer::MergeItem>& merge_heap, std::vector<int>& token_array, int start, int end);
-        void find_and_add_new_merges(const std::vector<int>& tokens, int start, int end, int from_a, int from_b,
-                                     std::priority_queue<FastTokenizer::MergeItem>& merge_heap);
-        void remove_gaps(std::vector<int>& token_array, int end);
+        void apply_bpe_merging(WorkerState& worker_state, int start, int end);
+        void find_and_add_new_merges(WorkerState& worker_state, int start, int end, int from_a, int from_b);
+        int remove_gaps(std::vector<int>& token_array, int end);
     };
 }

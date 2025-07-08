@@ -96,6 +96,7 @@ def main(args, corpora):
                 streaming=True,
             )
         test_texts = [doc['text'] for doc in dataset.take(args.n_docs)]
+        size_bytes = sum(len(text.encode('utf-8')) for text in test_texts)
 
         # 3. Run benchmarks
         print(elog('🐍', "Benchmarking Python implementation..."))
@@ -144,6 +145,7 @@ def main(args, corpora):
             "C++ (s)": f"{cpp_time:.3f}",
             "Py Tok/s": f"{tokens_per_sec_py:,.0f}",
             "C++ Tok/s": f"{tokens_per_sec_cpp:,.0f}",
+            "C++ Mb/s": f"{size_bytes / (cpp_time * 1e6):,.2f}",
             "Matches": matches,
             "Speedup": f"{speedup:.2f}x",
         })

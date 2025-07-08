@@ -250,14 +250,14 @@ Mean speedup:          44.60x
 
 
 --- Benchmark Summary ---
-| Corpus                      |   Python (s) |   C++ (s) | Py Tok/s   | C++ Tok/s   | Matches   | Speedup   |
-|-----------------------------|--------------|-----------|------------|-------------|-----------|-----------|
-| CulturaX-subsample-100-bal2 |      757.226 |    13.666 | 129,485    | 7,174,928   | ✅        | 55.41x    |
+| Corpus                      |   Python (s) |   C++ (s) | Py Tok/s   | C++ Tok/s   |   C++ Mb/s | Matches   | Speedup   |
+|-----------------------------|--------------|-----------|------------|-------------|------------|-----------|-----------|
+| CulturaX-subsample-100-bal2 |      767.562 |    13.762 | 127,741    | 7,124,630   |      39.86 | ✅        | 55.77x    |
 
 --- Totals ---
-Total Python time:     757.23 s
-Total C++ time:        13.67 s
-Mean speedup:          55.41x
+Total Python time:     767.56 s
+Total C++ time:        13.76 s
+Mean speedup:          55.77x
 
 # Try encode on non-char token again
 reintroduces space-inherited bug. And a tad slower?

@@ -19,11 +19,12 @@ class FastScriptTokenizer(BPETokenizer):
     
     def _setup_cpp_backend(self):
         assert isinstance(self.pretokenizer, ScriptEncodingPretokenizer) # make type checker happy
-        # Convert script encoding to C++ format: char -> CharSCRIPTEnc
-        cpp_script_encoding = {}
+        # Find max codepoint to size the vector
+        max_cp = max(ord(c) for c in self.pretokenizer.script_encoding)
+        cpp_script_encoding = [CharSCRIPTEnc(-1, -1, -1, -1) for _ in range(max_cp + 1)]
         for c, (sid, token_pair) in self.pretokenizer.script_encoding.items():
             token_id = self._merge_rules_dict.get(token_pair, (0, -1))[1]
-            cpp_script_encoding[c] = CharSCRIPTEnc(sid, *token_pair, token_id)
+            cpp_script_encoding[ord(c)] = CharSCRIPTEnc(sid, *token_pair, token_id)
 
         self._cpp_fast_tokenizer = FastTokenizer(
             cpp_script_encoding,

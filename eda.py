@@ -18,6 +18,11 @@ text = "\n1  koppie farro\n2 koppies grondboontjie"
 corpus_name = "CulturaX-subsample-100-bal2"
 vocab_size = 256000
 
+text = "이에요 ̈ 저희"
+corpus_name = 'kor_hang_300mb'
+vocab_size = 64000
+
+
 tokenizer_path = os.path.join(
     TOKENIZER_BASE_PATH, corpus_name, f"n{vocab_size}", tokenizer_file
 )

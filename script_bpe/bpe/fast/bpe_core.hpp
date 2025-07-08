@@ -60,14 +60,14 @@ namespace script_bpe {
 
     public:
         // Constructor
-    FastTokenizer(const std::unordered_map<char32_t, CharSCRIPTEnc>& char_script_enc,
+    FastTokenizer(const std::vector<CharSCRIPTEnc>& char_script_enc,
              const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules);
         
         py::array_t<int> encode(const std::u32string& text);
         
     private:
         // Core data structures
-    absl::flat_hash_map<char32_t, CharSCRIPTEnc> char_script_enc_;
+    std::vector<CharSCRIPTEnc> char_script_enc_;
     absl::flat_hash_map<std::pair<int, int>, std::pair<int, int>> merge_rules_;
         int whitespace_script_id_, inherited_script_id_;
         WorkerState worker_state_;

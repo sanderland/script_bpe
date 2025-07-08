@@ -54,6 +54,7 @@
         "cstddef": "cpp",
         "exception": "cpp",
         "iterator": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "valarray": "cpp"
     }
 }

@@ -3,19 +3,22 @@
 #include "absl/container/flat_hash_map.h"
 
 namespace script_bpe {
-        FastTokenizer::FastTokenizer(const std::unordered_map<char32_t, CharSCRIPTEnc>& char_script_enc,
-                                                                 const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules)
-                : char_script_enc_(char_script_enc.begin(), char_script_enc.end()),
-                    merge_rules_(merge_rules.begin(), merge_rules.end()) {
-        whitespace_script_id_ = char_script_enc_.find(U' ')->second.script_id;
-        inherited_script_id_ = char_script_enc_.find(U'ー')->second.script_id; // example for Japanese long vowel mark
-        auto& inherited_c_script_id_ = char_script_enc_.find(U'\u200d')->second.script_id; // example for zero-width joiner
-        auto& han_script_id_ = char_script_enc_.find(U'漢')->second.script_id;
-        auto& hiragana_script_id_ = char_script_enc_.find(U'ひ')->second.script_id;
+        FastTokenizer::FastTokenizer(const std::vector<CharSCRIPTEnc>& char_script_enc,
+                                     const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules)
+                : char_script_enc_(char_script_enc),
+                  merge_rules_(merge_rules.begin(), merge_rules.end()) {
+        // Assume special indices are provided by convention on the Python side
+        whitespace_script_id_ = char_script_enc_[static_cast<size_t>(U' ')].script_id;
+        inherited_script_id_ = char_script_enc_[static_cast<size_t>(U'ー')].script_id; // example for Japanese long vowel mark
+        auto inherited_c_script_id_ = char_script_enc_[static_cast<size_t>(U'\u200d')].script_id; // example for zero-width joiner
+        auto han_script_id_ = char_script_enc_[static_cast<size_t>(U'漢')].script_id;
+        auto hiragana_script_id_ = char_script_enc_[static_cast<size_t>(U'ひ')].script_id;
         // re-code hiragana to han and inherited(c) to inherited(lm)
         for (auto& it : char_script_enc_) {
-            if (it.second.script_id == hiragana_script_id_) it.second.script_id = han_script_id_;
-            if (it.second.script_id == inherited_c_script_id_) it.second.script_id = inherited_script_id_;
+            if (it.script_id == hiragana_script_id_) {
+                it.script_id = han_script_id_;
+            }
+            if (it.script_id == inherited_c_script_id_) it.script_id = inherited_script_id_;
         }
         worker_state_ = WorkerState(); // Initialize merge heap and token array
         worker_state_.token_array.resize(4096); // Reserve initial size
@@ -26,18 +29,23 @@ namespace script_bpe {
         }
         size_t start = 0, end = 0;
         int last_script_id = -1;
-        size_t required_capacity = text.length() * 2;
-        if(worker_state_.token_array.size() < required_capacity) {
-            worker_state_.token_array.resize(2 * required_capacity);
-        }
+
         auto& token_array = worker_state_.token_array;
+        size_t required_capacity = text.length() * 2;
+        if(token_array.size() < required_capacity) {
+            token_array.resize(2 * required_capacity);
+        }
 
         for(size_t ci = 0; ci < text.length(); ci++) {
-            auto it = char_script_enc_.find(text[ci]);
-            if (it == char_script_enc_.end()) { // invalid character, skip
-                continue;
+            char32_t ch = text[ci];
+            if (static_cast<size_t>(ch) >= char_script_enc_.size()) {
+                continue; // invalid character, skip
             }
-            auto& script_id = it->second.script_id;
+            auto& enc = char_script_enc_[static_cast<size_t>(ch)];
+            auto& script_id = enc.script_id;
+            if (script_id == -1) {
+                continue; // invalid character, skip
+            }
             if(script_id != last_script_id && script_id != inherited_script_id_) { // new pretoken
                 if(last_script_id == whitespace_script_id_ && end-start==1) {
                     last_script_id = script_id; // single space, include, but set script id to non-space
@@ -48,12 +56,12 @@ namespace script_bpe {
                     last_script_id = script_id;
                 }
             }
-            if (it->second.char_token_id == -1) { // still pair, never merged
-                token_array[end++] = it->second.block_id;
-                token_array[end++] = it->second.index_id;
+            if (enc.char_token_id == -1) { // still pair, never merged
+                token_array[end++] = enc.block_id;
+                token_array[end++] = enc.index_id;
             }
             else { // has token id, check script and maybe tokenize pretoken
-                token_array[end++] = it->second.char_token_id;
+                token_array[end++] = enc.char_token_id;
             }
         }
         apply_bpe_merging(worker_state_, start, end); // last pretoken

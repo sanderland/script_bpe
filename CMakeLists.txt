@@ -26,8 +26,15 @@ FetchContent_Declare(
     GIT_TAG 3.11.5
 )
 
+# Add ska::flat_hash_map
+FetchContent_Declare(
+    ska
+    GIT_REPOSITORY https://github.com/skarupke/flat_hash_map.git
+    GIT_TAG master  # ska has no tags, using master
+)
+
 # Make all dependencies available
-FetchContent_MakeAvailable(gtl robin_hood)
+FetchContent_MakeAvailable(gtl robin_hood ska)
 
 # Note: It's better to use CMake's check_cxx_compiler_flag for portability
 include(CheckCXXCompilerFlag)
@@ -57,6 +64,7 @@ function(set_common_target_options target implementation)
     target_include_directories(${target} PRIVATE 
         ${gtl_SOURCE_DIR}/include
         ${robin_hood_SOURCE_DIR}/src/include
+        ${ska_SOURCE_DIR}
     )
 
     # Set implementation-specific options
@@ -69,12 +77,14 @@ function(set_common_target_options target implementation)
         target_compile_definitions(${target} PRIVATE MERGE_MAP_GTL)
     elseif(implementation STREQUAL "robinhood")
         target_compile_definitions(${target} PRIVATE MERGE_MAP_ROBINHOOD)
+    elseif(implementation STREQUAL "ska")
+        target_compile_definitions(${target} PRIVATE MERGE_MAP_SKA)
     endif()
 endfunction()
 
 # Function to create targets for each implementation
 function(create_implementation_targets target_base source_files)
-    foreach(impl IN ITEMS std absl gtl robinhood)
+    foreach(impl IN ITEMS std absl gtl robinhood ska)
         set(target_name "${target_base}_${impl}")
         if(target_base STREQUAL "fast_tokenizer_cpp")
             pybind11_add_module(${target_name} ${source_files})

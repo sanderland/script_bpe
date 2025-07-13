@@ -8,7 +8,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BUILD_DIR="${SCRIPT_DIR}/build"
 
 # Arrays to store results - declare with indices to avoid unbound variable errors
-declare -a variants=(std absl gtl robinhood)
+declare -a variants=(std absl gtl robinhood ska)
 declare -a seconds=()
 declare -a tokens_per_sec=()
 declare -a cycles_per_token=()

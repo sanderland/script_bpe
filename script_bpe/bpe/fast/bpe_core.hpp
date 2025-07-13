@@ -41,8 +41,14 @@ typedef std::pair<int32_t, int32_t> merge_value_t;
     namespace script_bpe {
         using merge_map_t = robin_hood::unordered_flat_map<merge_key_t, merge_value_t>;
     }
+#elif defined(MERGE_MAP_SKA)
+    #include "flat_hash_map.hpp"
+    #define MERGE_MAP_NAME "ska::flat_hash_map"
+    namespace script_bpe {
+        using merge_map_t = ska::flat_hash_map<merge_key_t, merge_value_t>;
+    }
 #else
-    #error "One of MERGE_MAP_STD, MERGE_MAP_ABSL, MERGE_MAP_GTL, or MERGE_MAP_ROBINHOOD must be defined"
+    #error "One of MERGE_MAP_STD, MERGE_MAP_ABSL, MERGE_MAP_GTL, MERGE_MAP_ROBINHOOD, or MERGE_MAP_SKA must be defined"
 #endif
 
 #ifndef NO_PYTHON_BINDINGS

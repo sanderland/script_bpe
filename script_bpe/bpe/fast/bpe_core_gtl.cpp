@@ -1,4 +1,3 @@
-
 #include "bpe_core_gtl.hpp"
 
 namespace script_bpe {
@@ -27,9 +26,9 @@ namespace script_bpe {
         worker_state_ = WorkerState(); // Initialize merge heap and token array
         worker_state_.token_array.resize(4096); // Reserve initial size
     }
-    py::array_t<int> FastTokenizer::encode(const std::u32string& text) {
+    encode_return_t FastTokenizer::encode(const std::u32string& text) {
         if (text.empty()) {
-            return py::array_t<int>(); // Return empty array for empty input
+            return encode_return_t(); // Return empty array for empty input
         }
         size_t start = 0, end = 0;
         int last_script_id = -1;
@@ -70,7 +69,11 @@ namespace script_bpe {
         }
         apply_bpe_merging(worker_state_, start, end); // last pretoken
         int final_size = remove_gaps(token_array, end);
+#ifndef NO_PYTHON_BINDINGS
         return py::array_t<int>(final_size, token_array.data());
+#else
+        return std::vector<int>(token_array.begin(), token_array.begin() + final_size);
+#endif
     }
 
     int FastTokenizer::remove_gaps(std::vector<int>& token_array, int end) {
@@ -83,14 +86,14 @@ namespace script_bpe {
         return write_pos; // Return new size
     }
 
-    inline void FastTokenizer::apply_bpe_merging(WorkerState& worker_state, int start, int end) {
+    void FastTokenizer::apply_bpe_merging(WorkerState& worker_state, int start, int end) {
         if (end - start < 2) return; // Need at least 2 tokens to merge
         
         // Find all possible merges in this chunk - use consecutive individual tokens
         auto& token_array = worker_state.token_array;
         auto& merge_heap = worker_state.merge_heap;
         for (int i = start; i < end - 1; ++i) {
-            try_push_merge(merge_heap, merge_rules_, i, i+1, token_array);
+            this->try_push_merge(merge_heap, i, i+1, token_array);
         }
         
         // Apply merges in priority order
@@ -116,7 +119,7 @@ namespace script_bpe {
                 }
                 // Check merge with next token
                 if (next_pos < end) {
-                    try_push_merge(merge_heap, merge_rules_, item.from_a, next_pos, tokens);
+                    this->try_push_merge(merge_heap, item.from_a, next_pos, tokens);
                 }
                 // Find previous valid token before merge
                 int prev_pos = item.from_a - 1;
@@ -125,12 +128,26 @@ namespace script_bpe {
                 }
                 // Check merge with previous token
                 if (prev_pos >= start) {
-                    try_push_merge(merge_heap, merge_rules_, prev_pos, item.from_a, tokens);
+                    this->try_push_merge(merge_heap, prev_pos, item.from_a, tokens);
                 }
             }
         }
     }
 
-    
+    void FastTokenizer::try_push_merge(std::priority_queue<MergeItem>& merge_heap,
+                   int a, int b, const std::vector<int>& token_array) {
+        uint64_t merge_key = pack_key(token_array[a], token_array[b]);
+        auto it = merge_rules_.find(merge_key);
+        if (it != merge_rules_.end()) {
+            merge_heap.push({
+                it->second.first,
+                a,
+                token_array[a],
+                b,
+                token_array[b],
+                it->second.second
+            });
+        }
+    }
 
 }

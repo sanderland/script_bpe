@@ -274,7 +274,8 @@ using pthash_type = pthash::single_phf<pthash::xxhash128,                       
                         pthash::pthash_search_type::xor_displacement  // xor displacement
                         >; - 21s
 uint64 -> 16.xx
-
+gtl 13.71
+robinhood 
 
 
 # linear array for merge lookup ... no collision?

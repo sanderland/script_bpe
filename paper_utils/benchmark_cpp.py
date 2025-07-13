@@ -3,6 +3,7 @@ import time
 import argparse
 from datasets import load_dataset
 from tabulate import tabulate
+import unicodedata
 
 # Add the project root to the Python path to allow imports from script_bpe
 import sys
@@ -76,11 +77,13 @@ def main(args, corpora):
             continue
 
         python_tokenizer = BPETokenizer.load(tokenizer_path)
+        print(elog('🐍', f"Loaded C++ tokenizer from {tokenizer_path}"))
         cpp_tokenizer = FastScriptTokenizer(
             merge_rules=python_tokenizer.merge_rules,
             pretokenizer=python_tokenizer.pretokenizer,
             metadata=python_tokenizer.metadata
         )
+        print(elog('🚀', "C++ tokenizer initialized successfully."))
 
         # 2. Load the test data efficiently
         print(elog('💾', "Loading dataset..."))

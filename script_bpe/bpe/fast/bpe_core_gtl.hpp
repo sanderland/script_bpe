@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include "gtl/phmap.hpp"
 #include <queue>
 #include <string>
 #include <utility>
@@ -9,9 +8,20 @@
 #include <cstdint>
 #include <tuple>
 
+#ifdef USE_ROBIN_HOOD
+#include "robin_hood.h"
+#else
+#include "gtl/phmap.hpp"
+#endif
+
+#ifndef NO_PYTHON_BINDINGS
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 namespace py = pybind11;
+typedef py::array_t<int> encode_return_t;
+#else
+typedef std::vector<int> encode_return_t;
+#endif
 
 
 namespace std {
@@ -58,37 +68,27 @@ namespace script_bpe {
         std::vector<int> token_array;
     };  
 
-      // Helper to check merge_rules and push to heap if found
-    inline void try_push_merge(std::priority_queue<MergeItem>& merge_heap,
-                               const gtl::flat_hash_map<uint64_t, std::pair<int, int>>& merge_rules_,
-                               int a, int b, const std::vector<int>& token_array) {
-        uint64_t merge_key = pack_key(token_array[a], token_array[b]);
-        auto it = merge_rules_.find(merge_key);
-        if (it != merge_rules_.end()) {
-            merge_heap.push({
-                it->second.first,
-                a,
-                token_array[a],
-                b,
-                token_array[b],
-                it->second.second
-            });
-        }
-    }
     class FastTokenizer {
     public:
         // Constructor
-    FastTokenizer(const std::vector<CharSCRIPTEnc>& char_script_enc,
+        FastTokenizer(const std::vector<CharSCRIPTEnc>& char_script_enc,
              const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules);
-        py::array_t<int> encode(const std::u32string& text);
+        encode_return_t encode(const std::u32string& text);
         
     private:
         // Core data structures
         std::vector<CharSCRIPTEnc> char_script_enc_;
+#ifdef USE_ROBIN_HOOD
+        robin_hood::unordered_flat_map<uint64_t, std::pair<int, int>> merge_rules_;
+#else
         gtl::flat_hash_map<uint64_t, std::pair<int, int>> merge_rules_;
+#endif
         int whitespace_script_id_, inherited_script_id_;
         WorkerState worker_state_;
+
         // Core processing functions
+        void try_push_merge(std::priority_queue<MergeItem>& merge_heap,
+                          int a, int b, const std::vector<int>& token_array);
         void apply_bpe_merging(WorkerState& worker_state, int start, int end);
         int remove_gaps(std::vector<int>& token_array, int end);
     };

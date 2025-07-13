@@ -13,6 +13,8 @@ def parse_exclusion_file(file_path: str) -> Set[str]:
                 if line and not line.startswith('#'):
                     patterns.add(line)
     patterns.add('.git')
+    patterns.add('.vscode')
+    patterns.add('pthash')
     return patterns
 
 def is_excluded(path: str, exclusion_patterns: Set[str]) -> bool:

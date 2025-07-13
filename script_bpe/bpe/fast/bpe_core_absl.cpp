@@ -1,12 +1,16 @@
 
-#include "bpe_core.hpp"
+#include "bpe_core_absl.hpp"
 #include "absl/container/flat_hash_map.h"
 
 namespace script_bpe {
-        FastTokenizer::FastTokenizer(const std::vector<CharSCRIPTEnc>& char_script_enc,
+  
+    FastTokenizer::FastTokenizer(const std::vector<CharSCRIPTEnc>& char_script_enc,
                                      const std::unordered_map<std::pair<int, int>, std::pair<int, int>>& merge_rules)
-                : char_script_enc_(char_script_enc),
-                  merge_rules_(merge_rules.begin(), merge_rules.end()) {
+                : char_script_enc_(char_script_enc) {
+        for (const auto& rule : merge_rules) {
+            uint64_t key = pack_key(rule.first.first, rule.first.second);
+            merge_rules_[key] = rule.second; // Store as uint64_t key
+        }
         // Assume special indices are provided by convention on the Python side
         whitespace_script_id_ = char_script_enc_[static_cast<size_t>(U' ')].script_id;
         inherited_script_id_ = char_script_enc_[static_cast<size_t>(U'ー')].script_id; // example for Japanese long vowel mark
@@ -20,6 +24,7 @@ namespace script_bpe {
             }
             if (it.script_id == inherited_c_script_id_) it.script_id = inherited_script_id_;
         }
+
         worker_state_ = WorkerState(); // Initialize merge heap and token array
         worker_state_.token_array.resize(4096); // Reserve initial size
     }
@@ -86,24 +91,12 @@ namespace script_bpe {
         auto& token_array = worker_state.token_array;
         auto& merge_heap = worker_state.merge_heap;
         for (int i = start; i < end - 1; ++i) {
-            // Create pairs for merging: (token1, token2)
-            std::pair<int, int> merge_key = {token_array[i], token_array[i+1]};
-            auto it = merge_rules_.find(merge_key);
-            if (it != merge_rules_.end()) {
-                merge_heap.push({
-                    it->second.first,     // priority
-                    i,                    // from_a
-                    token_array[i],       // val_a
-                    i + 1,                // from_b
-                    token_array[i+1],     // val_b
-                    it->second.second     // to_id
-                });
-            }
+            try_push_merge(merge_heap, merge_rules_, i, i+1, token_array);
         }
         
         // Apply merges in priority order
         while (!merge_heap.empty()) {
-            FastTokenizer::MergeItem item = merge_heap.top();
+            MergeItem item = merge_heap.top();
             merge_heap.pop();
             // Verify merge is still valid
             if (token_array[item.from_a] != item.val_a || 
@@ -113,59 +106,32 @@ namespace script_bpe {
             token_array[item.from_a] = item.to_id;
             token_array[item.from_b] = -1;  // Mark as deleted
             
-            // Add new potential merges
-            find_and_add_new_merges(worker_state, start, end, item.from_a, item.from_b);
-        }
-    }
-
-    inline void FastTokenizer::find_and_add_new_merges(WorkerState& worker_state, int start, int end, int from_a, int from_b) {
-        auto& tokens = worker_state.token_array;
-        auto& merge_heap = worker_state.merge_heap;
-
-        // Find next valid token after merge
-        int next_pos = from_b + 1;
-        while (next_pos < end && tokens[next_pos] == -1) {
-            next_pos++;
-        }
-        
-        // Check merge with next token
-        if (next_pos < end) {
-            std::pair<int, int> merge_key = {tokens[from_a], tokens[next_pos]};
-            auto it = merge_rules_.find(merge_key);
-            if (it != merge_rules_.end()) {
-                merge_heap.push({
-                    it->second.first,
-                    from_a,
-                    tokens[from_a],
-                    next_pos,
-                    tokens[next_pos],
-                    it->second.second
-                });
-            }
-        }
-        
-        // Find previous valid token before merge
-        int prev_pos = from_a - 1;
-        while (prev_pos >= start && tokens[prev_pos] == -1) {
-            prev_pos--;
-        }
-        
-        // Check merge with previous token
-        if (prev_pos >= start) {
-            std::pair<int, int> merge_key = {tokens[prev_pos], tokens[from_a]};
-            auto it = merge_rules_.find(merge_key);
-            if (it != merge_rules_.end()) {
-                merge_heap.push({
-                    it->second.first,
-                    prev_pos,
-                    tokens[prev_pos],
-                    from_a,
-                    tokens[from_a],
-                    it->second.second
-                });
+            // Add new potential merges (inlined)
+            {
+                auto& tokens = worker_state.token_array;
+                auto& merge_heap = worker_state.merge_heap;
+                // Find next valid token after merge
+                int next_pos = item.from_b + 1;
+                while (next_pos < end && tokens[next_pos] == -1) {
+                    next_pos++;
+                }
+                // Check merge with next token
+                if (next_pos < end) {
+                    try_push_merge(merge_heap, merge_rules_, item.from_a, next_pos, tokens);
+                }
+                // Find previous valid token before merge
+                int prev_pos = item.from_a - 1;
+                while (prev_pos >= start && tokens[prev_pos] == -1) {
+                    prev_pos--;
+                }
+                // Check merge with previous token
+                if (prev_pos >= start) {
+                    try_push_merge(merge_heap, merge_rules_, prev_pos, item.from_a, tokens);
+                }
             }
         }
     }
+
     
 
 }

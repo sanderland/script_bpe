@@ -262,6 +262,21 @@ Mean speedup:          55.77x
 # Try encode on non-char token again
 reintroduces space-inherited bug. And a tad slower?
 
+# fn reorder/refactor, not expecting any changes
+C++ encoding took 13.442 seconds for 100,000 texts, producing 98,049,281 tokens (7,294,043 tokens/sec)
+
+# hash
+pthash::phobic<pthash::xxhash128>; - 28s
+using pthash_type = pthash::single_phf<pthash::xxhash128,                            // base hasher
+                       pthash::skew_bucketer,                        // bucketer type
+                       pthash::dictionary_dictionary,                // encoder type
+                        true,                                 // minimal
+                        pthash::pthash_search_type::xor_displacement  // xor displacement
+                        >; - 21s
+uint64 -> 16.xx
+
+
+
 # linear array for merge lookup ... no collision?
 
 

@@ -7,13 +7,21 @@ find_package(pybind11 REQUIRED)
 # This will find Abseil on the system (e.g., from `brew install abseil`, `apt install libabsl-dev`)
 # Users might need to set CMAKE_PREFIX_PATH if it's in a non-standard location.
 find_package(absl REQUIRED COMPONENTS hash raw_hash_set strings)
+# add gtl as a dependency
+include(FetchContent)
+FetchContent_Declare(
+    gtl
+    GIT_REPOSITORY https://github.com/greg7mdp/gtl.git
+    GIT_TAG        v1.2.0 # adjust tag/branch/commit as needed
+)
+FetchContent_MakeAvailable(gtl)
 
 
 # Build the extension as 'fast_tokenizer_cpp' and place it in the package subdirectory
 pybind11_add_module(
     fast_tokenizer_cpp
     script_bpe/bpe/fast/python_bindings.cpp
-    script_bpe/bpe/fast/bpe_core.cpp
+    script_bpe/bpe/fast/bpe_core_gtl.cpp
 )
 
 # Set the output directory to the package subdirectory
@@ -21,6 +29,9 @@ set_target_properties(fast_tokenizer_cpp PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/script_bpe/bpe/fast"
     OUTPUT_NAME "fast_tokenizer_cpp"
 )
+
+# Ensure GTL headers are found
+target_include_directories(fast_tokenizer_cpp PRIVATE ${gtl_SOURCE_DIR}/include)
 
 # Link against pybind11 and Abseil libraries
 target_link_libraries(

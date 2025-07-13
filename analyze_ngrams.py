@@ -9,13 +9,13 @@ from paper_utils.benchmark_cpp import TOKENIZER_BASE_PATH
 
 # Settings for each dataset
 DATASETS = [
-#    {
-#        'name': 'CulturaX-subsample-100-bal2',
-#        'hf_name': 'sanderland/CulturaX-subsample-100-bal2',
-#        'vocab_size': 256000,
-#        'tokenizer_file': 'scriptenc_cb.json.gz',
-#        'output': 'ngrams/cultura-ngrams.json',
-#    },
+    {
+        'name': 'CulturaX-subsample-100-bal2',
+        'hf_name': 'sanderland/CulturaX-subsample-100-bal2',
+        'vocab_size': 256000,
+        'tokenizer_file': 'scriptenc_cb.json.gz',
+        'output': 'ngrams/cultura-ngrams.json',
+    },
     {
         'name': 'lmsys-chat-1m',
         'hf_name': 'lmsys/lmsys-chat-1m',
@@ -25,6 +25,8 @@ DATASETS = [
         'output': 'ngrams/lmsys-ngrams.json',
     },
 ]
+DATASETS = DATASETS[:1]
+print(f"Processing {len(DATASETS)} datasets: {[d['name'] for d in DATASETS]}")
 
 NGRAMS = [1, 2, 3, 4]
 CHUNK_SIZE = 10_000  # Number of docs per chunk

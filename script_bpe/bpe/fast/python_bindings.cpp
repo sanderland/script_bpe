@@ -3,7 +3,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/cast.h>
 #include <iostream>
-#include "bpe_core.hpp"
+#include "bpe_core_absl.hpp"
 
 namespace py = pybind11;
 

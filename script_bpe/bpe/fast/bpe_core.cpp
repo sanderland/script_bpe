@@ -34,6 +34,7 @@ namespace script_bpe {
 
         worker_state_ = WorkerState(); // Initialize merge heap and token array
         worker_state_.token_array.resize(4096); // Reserve initial size
+        reserve_heap(worker_state_.merge_heap, 4096); // Reserve initial size for heap
     }
 
     encode_return_t FastTokenizer::encode(const std::u32string& text) {
@@ -89,12 +90,12 @@ namespace script_bpe {
 #endif
     }
 
-    inline void FastTokenizer::try_push_merge(std::priority_queue<MergeItem>& merge_heap,
-                   int a, int b, const std::vector<int>& token_array) {
+    inline void FastTokenizer::try_push_merge(pq_t& merge_heap,
+                   int a, int b, const token_arr_t& token_array) {
         merge_key_t merge_key = make_merge_key(token_array[a], token_array[b]);
         auto it = merge_rules_.find(merge_key);
         if (it != merge_rules_.end()) {
-            merge_heap.push({
+            push_heap(merge_heap, {
                 it->second.first,
                 a,
                 token_array[a],
@@ -126,9 +127,9 @@ namespace script_bpe {
         }
         
         // Apply merges in priority order
-        while (!merge_heap.empty()) {
-            MergeItem item = merge_heap.top();
-            merge_heap.pop();
+        while (!empty_heap(merge_heap)) {
+            MergeItem item = top_heap(merge_heap);
+            pop_heap(merge_heap);
             // Verify merge is still valid
             if (token_array[item.from_a] != item.val_a || 
                 token_array[item.from_b] != item.val_b) continue;

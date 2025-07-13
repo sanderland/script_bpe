@@ -41,12 +41,12 @@ include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-march=native" COMPILER_HAS_MARCH_NATIVE)
 
 # Function to set common compile options
-function(set_common_target_options target implementation)
+function(set_common_target_options target implementation queue_type)
     target_compile_features(${target} PRIVATE cxx_std_17)
     target_compile_options(${target} PRIVATE 
         -O3 
         -DNDEBUG
-        -Wno-interference-size  # Suppress GTL hardware interference size warnings
+        -Wno-interference-size
     )
     if(COMPILER_HAS_MARCH_NATIVE)
         target_compile_options(${target} PRIVATE -march=native)
@@ -80,34 +80,38 @@ function(set_common_target_options target implementation)
     elseif(implementation STREQUAL "ska")
         target_compile_definitions(${target} PRIVATE MERGE_MAP_SKA)
     endif()
+
+    target_compile_definitions(${target} PRIVATE ${queue_type})
 endfunction()
 
-# Function to create targets for each implementation
-function(create_implementation_targets target_base source_files)
-    foreach(impl IN ITEMS std absl gtl robinhood ska)
-        set(target_name "${target_base}_${impl}")
-        if(target_base STREQUAL "fast_tokenizer_cpp")
-            pybind11_add_module(${target_name} ${source_files})
-            set_target_properties(${target_name} PROPERTIES
-                LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/script_bpe/bpe/fast"
-                OUTPUT_NAME "${target_name}"
-            )
-        else()
-            add_executable(${target_name} ${source_files})
-            target_compile_definitions(${target_name} PRIVATE NO_PYTHON_BINDINGS)
-        endif()
-        set_common_target_options(${target_name} ${impl})
-    endforeach()
+# Function to create a single target with specific implementation and queue type
+function(create_specific_target target_base source_files implementation queue_type suffix)
+    set(target_name "${target_base}${suffix}")
+    if(target_base STREQUAL "fast_tokenizer_cpp")
+        pybind11_add_module(${target_name} ${source_files})
+        set_target_properties(${target_name} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/script_bpe/bpe/fast"
+            OUTPUT_NAME "${target_name}"
+        )
+    else()
+        add_executable(${target_name} ${source_files})
+        target_compile_definitions(${target_name} PRIVATE NO_PYTHON_BINDINGS)
+    endif()
+    set_common_target_options(${target_name} ${implementation} ${queue_type})
 endfunction()
 
-# Create all variants of the Python module
-create_implementation_targets(
+# Create Python module - only GTL + PQ_STD_HEAP variant
+create_specific_target(
     fast_tokenizer_cpp
     "script_bpe/bpe/fast/python_bindings.cpp;script_bpe/bpe/fast/bpe_core.cpp"
+    "gtl"
+    "PQ_STD_HEAP"
+    ""
 )
 
-# Create all variants of the benchmark executable
-create_implementation_targets(
-    benchmark_cpp_fast
-    "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp"
-)
+# Create benchmark executables with specific variants
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_STD_HEAP" "__gtl_heap")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_STD_PQ" "__gtl_pq")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_STD_HEAP" "__absl_heap")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_STD_PQ" "__absl_pq")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_STD_HEAP" "__ska_heap")

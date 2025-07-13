@@ -51,6 +51,69 @@ typedef std::pair<int32_t, int32_t> merge_value_t;
     #error "One of MERGE_MAP_STD, MERGE_MAP_ABSL, MERGE_MAP_GTL, MERGE_MAP_ROBINHOOD, or MERGE_MAP_SKA must be defined"
 #endif
 
+
+struct MergeItem {
+    int32_t priority;
+    int32_t from_a;
+    int32_t val_a;
+    int32_t from_b;
+    int32_t val_b;
+    int32_t to_id;
+    
+    bool operator<(const MergeItem& other) const {
+        return std::tie(priority, from_a) > std::tie(other.priority, other.from_a);
+    }
+};
+#ifdef PQ_STD_HEAP
+    namespace script_bpe {
+        using pq_t = std::vector<MergeItem>;
+        inline void reserve_heap(pq_t& heap, size_t size) {
+            heap.reserve(size);
+        }
+        inline void make_heap(pq_t& heap) {
+            std::make_heap(heap.begin(), heap.end());
+        }
+        inline void push_heap(pq_t& heap, const MergeItem& item) {
+            heap.push_back(item);
+            std::push_heap(heap.begin(), heap.end());
+        }
+        inline const MergeItem& top_heap(const pq_t& heap) {
+            return heap.front();
+        }
+        inline void pop_heap(pq_t& heap) {
+            std::pop_heap(heap.begin(), heap.end());
+            heap.pop_back();
+        }
+        inline bool empty_heap(const pq_t& heap) {
+            return heap.empty();
+        }
+    }
+#elif defined(PQ_STD_PQ)
+    namespace script_bpe {
+        using pq_t = std::priority_queue<MergeItem>;
+        inline void reserve_heap(pq_t& heap, size_t size) {
+            // std::priority_queue does not support reserve, so this is a no-op
+        }
+        inline void make_heap(pq_t&) {} // No-op for std::priority_queue
+        inline void push_heap(pq_t& heap, const MergeItem& item) {
+            heap.push(item);
+        }
+        inline const MergeItem& top_heap(const pq_t& heap) {
+            return heap.top();
+        }
+        inline void pop_heap(pq_t& heap) {
+            heap.pop();
+        }
+        inline bool empty_heap(const pq_t& heap) {
+            return heap.empty();
+        }
+    }
+#else
+    #error "Only PQ_STD_HEAP is supported for now"
+#endif
+
+
+
 #ifndef NO_PYTHON_BINDINGS
     #include <pybind11/pybind11.h>
     #include <pybind11/numpy.h>
@@ -72,6 +135,7 @@ namespace std {
 }
 
 namespace script_bpe {
+    using token_arr_t = std::vector<int>;
 
     struct CharSCRIPTEnc {
         int script_id;
@@ -80,22 +144,9 @@ namespace script_bpe {
         int char_token_id; // -1 if character is raw pair
     };
 
-    struct MergeItem {
-        int32_t priority;
-        int32_t from_a;
-        int32_t val_a;
-        int32_t from_b;
-        int32_t val_b;
-        int32_t to_id;
-        
-        bool operator<(const MergeItem& other) const {
-            return std::tie(priority, from_a) > std::tie(other.priority, other.from_a);
-        }
-    };
-
     struct WorkerState {
-        std::priority_queue<MergeItem> merge_heap;
-        std::vector<int> token_array;
+        pq_t merge_heap;
+        token_arr_t token_array;
     };
 
     class FastTokenizer {
@@ -110,9 +161,9 @@ namespace script_bpe {
         int whitespace_script_id_, inherited_script_id_;
         WorkerState worker_state_;
 
-        void try_push_merge(std::priority_queue<MergeItem>& merge_heap,
-                          int a, int b, const std::vector<int>& token_array);
+        void try_push_merge(pq_t& merge_heap,
+                          int a, int b, const token_arr_t& token_array);
         void apply_bpe_merging(WorkerState& worker_state, int start, int end);
-        int remove_gaps(std::vector<int>& token_array, int end);
+        int remove_gaps(token_arr_t& token_array, int end);
     };
 }

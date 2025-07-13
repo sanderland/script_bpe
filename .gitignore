@@ -1,7 +1,7 @@
 # debug
 log*.txt
 profile*
-*.so
+results/bench*.txt
 
 # test runs
 results/tokenizers/swift/*
@@ -17,6 +17,13 @@ training_timing_logs/
 results/training_timing_logs/
 results/tokenizers/**/*.md
 
+# build artifacts
+_deps/*
+*.o
+*.so
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
 
 # Python-generated files
 __pycache__/

@@ -3,6 +3,7 @@ import time
 import argparse
 from datasets import load_dataset
 from tabulate import tabulate
+import unicodedata
 
 # Add the project root to the Python path to allow imports from script_bpe
 import sys
@@ -30,7 +31,7 @@ MULTILINGUAL_CORPORA = [
 ]
 TOKENIZER_BASE_PATH = "results/tokenizers"
 
-def time_encoding(tokenizer, texts: list[str]) -> tuple[float, int, list[list[int]]]:
+def time_encoding(name, tokenizer, texts: list[str]) -> tuple[float, int, list[list[int]]]:
     """
     Measures the time taken to encode a list of texts and returns the duration
     and total number of tokens produced.
@@ -45,6 +46,8 @@ def time_encoding(tokenizer, texts: list[str]) -> tuple[float, int, list[list[in
         tokenized.append(encoded)
     end_time = time.perf_counter()
     duration = end_time - start_time
+    print(f"{name} encoding took {duration:.3f} seconds for {len(texts):,} texts, "
+          f"producing {total_tokens:,} tokens ({total_tokens / duration:,.0f} tokens/sec)")
     return duration, total_tokens, tokenized
 
 def main(args, corpora):
@@ -74,11 +77,13 @@ def main(args, corpora):
             continue
 
         python_tokenizer = BPETokenizer.load(tokenizer_path)
+        print(elog('🐍', f"Loaded C++ tokenizer from {tokenizer_path}"))
         cpp_tokenizer = FastScriptTokenizer(
             merge_rules=python_tokenizer.merge_rules,
             pretokenizer=python_tokenizer.pretokenizer,
             metadata=python_tokenizer.metadata
         )
+        print(elog('🚀', "C++ tokenizer initialized successfully."))
 
         # 2. Load the test data efficiently
         print(elog('💾', "Loading dataset..."))
@@ -99,11 +104,13 @@ def main(args, corpora):
         size_bytes = sum(len(text.encode('utf-8')) for text in test_texts)
 
         # 3. Run benchmarks
-        print(elog('🐍', "Benchmarking Python implementation..."))
-        py_time, total_tokens, py_tokenized = time_encoding(python_tokenizer, test_texts)
-
         print(elog('➕',"Benchmarking C++ implementation... 🚀"))
-        cpp_time, _, cpp_tokenized = time_encoding(cpp_tokenizer, test_texts)
+        cpp_time, _, cpp_tokenized = time_encoding("C++", cpp_tokenizer, test_texts)
+
+        if args.cpp:
+            return
+        print(elog('🐍', "Benchmarking Python implementation..."))
+        py_time, total_tokens, py_tokenized = time_encoding("Python", python_tokenizer, test_texts)
 
         n_mismatches = 0
         if any(len(py_tok_i)!=len(cpp_tok_i) or (py_tok_i != cpp_tok_i).any() for py_tok_i, cpp_tok_i in zip(py_tokenized, cpp_tokenized)):
@@ -191,6 +198,7 @@ if __name__ == "__main__":
         default="monolingual",
         choices=["monolingual", "multilingual","all"],
     )
+    parser.add_argument('--cpp', action='store_true', help="Only test C++ tokenizer")
     if parser.parse_known_args()[0].corpora == "monolingual":
         corpora = MONOLINGUAL_CORPORA
     elif parser.parse_known_args()[0].corpora == "multilingual":

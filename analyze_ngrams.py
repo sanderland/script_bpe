@@ -9,13 +9,14 @@ from paper_utils.benchmark_cpp import TOKENIZER_BASE_PATH
 
 # Settings for each dataset
 DATASETS = [
-#    {
-#        'name': 'CulturaX-subsample-100-bal2',
-#        'hf_name': 'sanderland/CulturaX-subsample-100-bal2',
-#        'vocab_size': 256000,
-#        'tokenizer_file': 'scriptenc_cb.json.gz',
-#        'output': 'ngrams/cultura-ngrams.json',
-#    },
+    {
+        'name': 'CulturaX-subsample-100-bal2',
+        'hf_name': 'sanderland/CulturaX-subsample-100-bal2',
+        'vocab_size': 256000,
+        'tokenizer_name': 'CulturaX-subsample-100-bal2',
+        'tokenizer_file': 'scriptenc_cb.json.gz',
+        'output': 'ngrams/cultura-ngrams.json',
+    },
     {
         'name': 'lmsys-chat-1m',
         'hf_name': 'lmsys/lmsys-chat-1m',
@@ -25,9 +26,11 @@ DATASETS = [
         'output': 'ngrams/lmsys-ngrams.json',
     },
 ]
+DATASETS = DATASETS[1:]
+print(f"Processing {len(DATASETS)} datasets: {[d['name'] for d in DATASETS]}")
 
-NGRAMS = [1, 2, 3, 4]
-CHUNK_SIZE = 10_000  # Number of docs per chunk
+NGRAMS = [1, 2, 3]
+CHUNK_SIZE = 1_000_000  # Number of docs per chunk
 os.makedirs('cache', exist_ok=True)
 
 def get_tokenizer(corpus_name, vocab_size, tokenizer_file):
@@ -44,14 +47,12 @@ def iter_texts(row):
         content = "\n".join(turn['content'] for turn in row['conversation'])
         yield content
 
-def count_ngrams(token_lists, ngrams):
-    counts = {n: Counter() for n in ngrams}
-    for tokens in token_lists:
-        for n in ngrams:
-            for i in range(len(tokens) - n + 1):
-                ng = tuple(tokens[i:i+n])
-                counts[n][ng] += 1
-    return counts
+def count_ngrams(tokens, ngrams, total):
+    for n in ngrams:
+        totals_n = total[n]
+        for i in range(len(tokens) - n + 1):
+            ng = tuple(tokens[i:i+n])
+            totals_n[ng] += 1
 
 def merge_counts(total, part):
     for n in total:
@@ -62,21 +63,20 @@ def process_dataset(cfg):
     tokenizer = get_tokenizer(cfg['tokenizer_name'], cfg['vocab_size'], cfg['tokenizer_file'])
     dataset = load_dataset(cfg['hf_name'], split='train', streaming=True)
     ngram_counts = {n: Counter() for n in NGRAMS}
-    token_buffer = []
     total = 0
-    for row in tqdm(dataset, desc=cfg['name']):
+    for idx, row in tqdm(enumerate(dataset), desc=cfg['name']):
         for text in iter_texts(row):
             tokens = tokenizer.encode(str(text))
-            token_buffer.append(tokens)
             total += 1
-            if len(token_buffer) >= CHUNK_SIZE:
-                part_counts = count_ngrams(token_buffer, NGRAMS)
-                merge_counts(ngram_counts, part_counts)
-                token_buffer.clear()
-    # Final chunk
-    if token_buffer:
-        part_counts = count_ngrams(token_buffer, NGRAMS)
-        merge_counts(ngram_counts, part_counts)
+            count_ngrams(tokens.tolist(), NGRAMS, ngram_counts)
+        if (idx + 1) % 250000 == 0:
+            print(f"Processed {idx + 1} documents, ngram sizes:")
+            for n in NGRAMS:
+                print(f"  {n}-grams: {len(ngram_counts[n])} unique")
+        if (idx + 1) % CHUNK_SIZE == 0:
+            for i in [2,3]:
+                ngram_counts[i] = Counter({k: v for k, v in ngram_counts[i].items() if v > 1})
+                print(f"Chunk {idx + 1} processed, {i}-grams reduced to {len(ngram_counts[i])} unique")
     # Save
     out = {str(n): {" ".join(map(str, k)): v for k, v in ngram_counts[n].items()} for n in NGRAMS}
     os.makedirs(os.path.dirname(cfg['output']), exist_ok=True)

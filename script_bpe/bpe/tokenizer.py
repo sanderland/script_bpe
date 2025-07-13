@@ -116,8 +116,10 @@ class BPETokenizer:
 
         return [i for i in ids_arr if i >= 0]
 
-    def encode(self, text: str) -> TokenSeq:
+    def encode(self, text: str, keep_chunks: bool = False) -> TokenSeq:
         chunks = self.pretokenizer.encode_and_chunk(text)
+        if keep_chunks:
+            return [self._encode_chunk(chunk) for chunk in chunks]
         return token_array([t for chunk in chunks for t in self._encode_chunk(chunk)])
 
     def save(self, file_path) -> str:

@@ -15,8 +15,10 @@ class FastScriptTokenizer(BPETokenizer):
         if not isinstance(pretokenizer, ScriptEncodingPretokenizer) or not pretokenizer.enforce_char_boundaries:
             raise RuntimeError("FastScriptTokenizer only supports ScriptEncodingPretokenizer with enforce_char_boundaries")
         super().__init__(merge_rules, pretokenizer, metadata)
+
         self._setup_cpp_backend()
-    
+
+
     def _setup_cpp_backend(self):
         assert isinstance(self.pretokenizer, ScriptEncodingPretokenizer) # make type checker happy
         # Find max codepoint to size the vector

@@ -30,7 +30,7 @@ namespace std {
 
 
 using token_t = int32_t;
-using base_token_t = int32_t;
+using base_token_t = int16_t;
 using token_arr_t = std::vector<token_t>;
 // All map-specific configuration in a single block
 // typedef std::pair<int, int> merge_key_t;

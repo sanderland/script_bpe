@@ -121,11 +121,11 @@ int main() {
     std::chrono::duration<double> duration = end_time - start_time;
     double cycles_per_token = static_cast<double>(end_cycles - start_cycles) / total_tokens;
 
-    std::cout << "BENCHMARK_RESULT "
-              << std::fixed << std::setprecision(6)
-              << duration.count() << " "
-              << total_tokens / duration.count() << " "
-              << cycles_per_token << std::endl;
+    std::cout << "{\"time\": " << std::fixed << std::setprecision(6) << duration.count()
+              << ", \"tokens_per_s\": " << total_tokens / duration.count()
+              << ", \"cycles_per_token\": " << cycles_per_token
+              << ", \"total_tokens\": " << total_tokens
+              << "}" << std::endl;
 
     return 0;
 }

@@ -12,6 +12,9 @@ find_package(pybind11 REQUIRED)
 # Find Abseil on the system
 find_package(absl REQUIRED COMPONENTS hash raw_hash_set strings)
 
+# Find Boost
+find_package(Boost REQUIRED)
+
 # Add GTL
 FetchContent_Declare(
     gtl
@@ -110,8 +113,16 @@ create_specific_target(
 )
 
 # Create benchmark executables with specific variants
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_STD_HEAP" "__gtl_heap")
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_STD_PQ" "__gtl_pq")
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_STD_HEAP" "__absl_heap")
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_STD_PQ" "__absl_pq")
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_STD_HEAP" "__ska_heap")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_STD_HEAP" "__gtl_stdheap")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_STD_PQ" "__gtl_stdpq")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_DARY_HEAP" "__gtl_dary")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_SKA_MIN_MAX" "__gtl_skaminmax")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_SKA_4ARY" "__gtl_ska4ary")
+
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_STD_HEAP" "__absl_stdheap")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_STD_HEAP" "__ska_stdheap")
+
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_SKA_4ARY" "__absl_ska4ary")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_SKA_4ARY" "__ska_ska4ary")
+
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "std" "PQ_STD_PQ" "__std_stdpq")

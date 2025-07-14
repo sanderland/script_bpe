@@ -8,19 +8,13 @@
 #include <cstdint>
 #include <tuple>
 
-
-using pos_t = int32_t; // also signed to handle occasional -1 comparisons
-using token_t = int32_t;
-using base_token_t = int16_t;
-using token_arr_t = std::vector<token_t>;
-
 #ifndef NO_PYTHON_BINDINGS
     #include <pybind11/pybind11.h>
     #include <pybind11/numpy.h>
     namespace py = pybind11;
     typedef py::array_t<int> encode_return_t;
 #else
-    typedef std::vector<token_t> encode_return_t;
+    typedef std::vector<int> encode_return_t;
 #endif
 
 namespace std {
@@ -34,26 +28,31 @@ namespace std {
     };
 }
 
+
+using token_t = int32_t;
+using base_token_t = int16_t;
+using token_arr_t = std::vector<token_t>;
 // All map-specific configuration in a single block
 // typedef std::pair<int, int> merge_key_t;
 using merge_key_t = uint64_t;
-using merge_value_t = token_t;
+using merge_value_t = std::pair<int32_t, int32_t>;
 inline merge_key_t make_merge_key(int a, int b) {
     return (static_cast<uint64_t>(a) << 32) | static_cast<uint32_t>(b);
 }
 
 struct MergeItem {
-    token_t to_id;
-    pos_t from_a;
-    pos_t from_b;
-    token_t val_a;
-    token_t val_b;
+    int32_t priority;
+    int32_t from_a;
+    int32_t val_a;
+    int32_t from_b;
+    int32_t val_b;
+    int32_t to_id;
     
     bool operator<(const MergeItem& other) const {
-        return std::tie(to_id, from_a) < std::tie(other.to_id, other.from_a);
+        return std::tie(priority, from_a) < std::tie(other.priority, other.from_a);
     }
     bool operator>(const MergeItem& other) const {
-        return std::tie(to_id, from_a) > std::tie(other.to_id, other.from_a);
+        return std::tie(priority, from_a) > std::tie(other.priority, other.from_a);
     }
 };
 
@@ -219,8 +218,8 @@ namespace script_bpe {
         WorkerState worker_state_;
 
         void try_push_merge(pq_t& merge_heap,
-                          pos_t a, pos_t b, const token_arr_t& token_array);
-        void apply_bpe_merging(WorkerState& worker_state, pos_t start, pos_t end);
-        int remove_gaps(token_arr_t& token_array, pos_t end);
+                          int a, int b, const token_arr_t& token_array);
+        void apply_bpe_merging(WorkerState& worker_state, int start, int end);
+        int remove_gaps(token_arr_t& token_array, int end);
     };
 }

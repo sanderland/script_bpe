@@ -41,7 +41,7 @@ namespace script_bpe {
         if (text.empty()) {
             return encode_return_t(); // Return empty array for empty input
         }
-        pos_t start = 0, end = 0;
+        size_t start = 0, end = 0;
         int last_script_id = -1;
 
         auto& token_array = worker_state_.token_array;
@@ -50,7 +50,7 @@ namespace script_bpe {
             token_array.resize(2 * required_capacity);
         }
 
-        for(pos_t ci = 0; ci < text.length(); ci++) {
+        for(size_t ci = 0; ci < text.length(); ci++) {
             char32_t ch = text[ci];
             if (static_cast<size_t>(ch) >= char_script_enc_.size()) {
                 continue; // invalid character, skip
@@ -86,32 +86,43 @@ namespace script_bpe {
         std::memcpy(buffer.ptr, token_array.data(), final_size * sizeof(int));
         return result;
 #else
-        return std::vector<token_t>(token_array.begin(), token_array.begin() + final_size);
+        return std::vector<int>(token_array.begin(), token_array.begin() + final_size);
 #endif
     }
 
     inline void FastTokenizer::try_push_merge(pq_t& merge_heap,
-                   pos_t a, pos_t b, const token_arr_t& token_array) {
+                   int a, int b, const token_arr_t& token_array) {
         merge_key_t merge_key = make_merge_key(token_array[a], token_array[b]);
         auto it = merge_rules_.find(merge_key);
         if (it != merge_rules_.end()) {
             push_heap(merge_heap, {
-                it->second,
+                it->second.first,
                 a,
-                b,
                 token_array[a],
+                b,
                 token_array[b],
+                it->second.second
             });
         }
     }
 
-    void FastTokenizer::apply_bpe_merging(WorkerState& worker_state, pos_t start, pos_t end) {
+    int FastTokenizer::remove_gaps(std::vector<int>& token_array, int end) {
+        int write_pos = 0;
+        for (int read_pos = 0; read_pos < end; ++read_pos) {
+            if (token_array[read_pos] != -1) {
+                token_array[write_pos++] = token_array[read_pos];
+            }
+        }
+        return write_pos; // Return new size
+    }
+
+    void FastTokenizer::apply_bpe_merging(WorkerState& worker_state, int start, int end) {
         if (end - start < 2) return; // Need at least 2 tokens to merge
         
         // Find all possible merges in this chunk - use consecutive individual tokens
         auto& token_array = worker_state.token_array;
         auto& merge_heap = worker_state.merge_heap;
-        for (pos_t i = start; i < end - 1; ++i) {
+        for (int i = start; i < end - 1; ++i) {
             this->try_push_merge(merge_heap, i, i+1, token_array);
         }
         
@@ -121,9 +132,7 @@ namespace script_bpe {
             pop_heap(merge_heap);
             // Verify merge is still valid
             if (token_array[item.from_a] != item.val_a || 
-                token_array[item.from_b] != item.val_b) {
-                    continue;
-                }
+                token_array[item.from_b] != item.val_b) continue;
             
             // Perform merge - replace first token with merged token, mark second token as deleted
             token_array[item.from_a] = item.to_id;
@@ -134,7 +143,7 @@ namespace script_bpe {
                 auto& tokens = worker_state.token_array;
                 auto& merge_heap = worker_state.merge_heap;
                 // Find next valid token after merge
-                pos_t next_pos = item.from_b + 1;
+                int next_pos = item.from_b + 1;
                 while (next_pos < end && tokens[next_pos] == -1) {
                     next_pos++;
                 }
@@ -143,7 +152,7 @@ namespace script_bpe {
                     this->try_push_merge(merge_heap, item.from_a, next_pos, tokens);
                 }
                 // Find previous valid token before merge
-                pos_t prev_pos = item.from_a - 1;
+                int prev_pos = item.from_a - 1;
                 while (prev_pos >= start && tokens[prev_pos] == -1) {
                     prev_pos--;
                 }
@@ -155,14 +164,4 @@ namespace script_bpe {
         }
     }
 
-
-    int FastTokenizer::remove_gaps(std::vector<int>& token_array, pos_t end) {
-        int write_pos = 0;
-        for (int read_pos = 0; read_pos < end; ++read_pos) {
-            if (token_array[read_pos] != -1) {
-                token_array[write_pos++] = token_array[read_pos];
-            }
-        }
-        return write_pos; // Return new size
-    }
 } // namespace script_bpe

@@ -60,7 +60,7 @@ int main() {
     }
 
     // Read merge_rules from text file
-    std::unordered_map<std::pair<int, int>, int> merge_rules;
+    std::vector<std::tuple<int, int, int, int>> merge_rules_data;
     {
         std::ifstream f(merge_rules_path);
         if (!f.is_open()) {
@@ -72,8 +72,15 @@ int main() {
             int a, b, priority, to_id;
             std::istringstream iss(line);
             iss >> a >> b >> priority >> to_id;
-            merge_rules[{a, b}] = to_id;
+            merge_rules_data.emplace_back(a, b, priority, to_id);
         }
+    }
+
+    // Build merge rules map
+    std::unordered_map<std::pair<int, int>, std::pair<int, int>> merge_rules;
+    merge_rules.reserve(merge_rules_data.size());
+    for (const auto& [a, b, priority, to_id] : merge_rules_data) {
+        merge_rules[{a, b}] = {priority, to_id};
     }
 
     // Create tokenizer with the loaded data
@@ -95,6 +102,10 @@ int main() {
     }
     text_file.close();
 
+    // Clear merge rules data to save memory during encoding
+    merge_rules.clear();
+    merge_rules_data.clear();
+
     // Encode each line and collect stats
     size_t total_tokens = 0;
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -103,7 +114,6 @@ int main() {
     for (const auto& text : lines) {
         auto tokens = tokenizer.encode(text);
         total_tokens += tokens.size();
-        std::cout << "Encoded line with " << tokens.size() << " tokens." << std::endl;
     }
 
     uint64_t end_cycles = GET_CYCLES();

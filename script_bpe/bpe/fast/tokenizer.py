@@ -30,7 +30,7 @@ class FastScriptTokenizer(BPETokenizer):
 
         self._cpp_fast_tokenizer = FastTokenizer(
             cpp_script_encoding,
-            {k: t for (k, (p,t)) in self._merge_rules_dict.items()},
+            self._merge_rules_dict,
         )
     
     def encode(self, text: str) -> np.ndarray:

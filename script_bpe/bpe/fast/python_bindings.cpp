@@ -16,7 +16,7 @@ PYBIND11_MODULE(fast_tokenizer_cpp, m) {
 
     py::class_<script_bpe::FastTokenizer>(m, "FastTokenizer")
         .def(py::init<const std::vector<script_bpe::CharSCRIPTEnc>&,
-                     const std::unordered_map<std::pair<int, int>, int>&>(),
+                     const std::unordered_map<std::pair<int, int>, std::pair<int, int>>&>(),
               py::arg("char_script_enc"), py::arg("merge_rules"))
         .def("encode", &script_bpe::FastTokenizer::encode);
 }

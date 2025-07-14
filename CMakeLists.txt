@@ -39,7 +39,7 @@ FetchContent_Declare(
 # Make all dependencies available
 FetchContent_MakeAvailable(gtl robin_hood ska)
 
-# Note: It's better to use CMake's check_cxx_compiler_flag for portability
+# use march=native optimization if supported
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-march=native" COMPILER_HAS_MARCH_NATIVE)
 
@@ -47,7 +47,7 @@ check_cxx_compiler_flag("-march=native" COMPILER_HAS_MARCH_NATIVE)
 function(set_common_target_options target implementation queue_type)
     target_compile_features(${target} PRIVATE cxx_std_17)
     target_compile_options(${target} PRIVATE 
-        -O3 
+        -O3
         -DNDEBUG
         -Wno-interference-size
     )

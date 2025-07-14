@@ -30,7 +30,7 @@ namespace std {
 
 
 using token_t = int32_t;
-using base_token_t = int16_t;
+using base_token_t = int32_t;
 using token_arr_t = std::vector<token_t>;
 // All map-specific configuration in a single block
 // typedef std::pair<int, int> merge_key_t;
@@ -102,13 +102,9 @@ struct MergeItem {
     inline bool empty_heap(const pq_t& heap) {
         return heap.empty();
     }
-#elif defined(PQ_BOOST_4ARY) or defined(PQ_BOOST_3ARY)
+#elif defined(PQ_BOOST_4ARY)
     #include <boost/heap/d_ary_heap.hpp>
-#ifdef PQ_BOOST_4ARY
     using pq_t = boost::heap::d_ary_heap<MergeItem, boost::heap::arity<4>, boost::heap::compare<std::greater<MergeItem>>>;
-#elif defined(PQ_BOOST_3ARY)
-    using pq_t = boost::heap::d_ary_heap<MergeItem, boost::heap::arity<3>, boost::heap::compare<std::greater<MergeItem>>>;
-#endif
     inline void reserve_heap(pq_t& heap, size_t size) {
         heap.reserve(size);
     }
@@ -121,52 +117,6 @@ struct MergeItem {
     }
     inline void pop_heap(pq_t& heap) {
         heap.pop();
-    }
-    inline bool empty_heap(const pq_t& heap) {
-        return heap.empty();
-    }
-#elif defined(PQ_SKA_MIN_MAX)
-    #include "ska_heaps.hpp"
-    using pq_t = std::vector<MergeItem>;
-    inline void reserve_heap(pq_t& heap, size_t size) {
-        heap.reserve(size);
-    }
-    inline void make_heap(pq_t& heap) {
-        make_minmax_heap(heap.begin(), heap.end());
-    }
-    inline void push_heap(pq_t& heap, const MergeItem& item) {
-        heap.push_back(item);
-        push_minmax_heap(heap.begin(), heap.end());
-    }
-    inline const MergeItem& top_heap(const pq_t& heap) {
-        return heap.front();
-    }
-    inline void pop_heap(pq_t& heap) {
-        pop_minmax_heap_min(heap.begin(), heap.end());
-        heap.pop_back();
-    }
-    inline bool empty_heap(const pq_t& heap) {
-        return heap.empty();
-    }
-#elif defined(PQ_SKA_4ARY)
-    #include "ska_heaps.hpp"
-    using pq_t = std::vector<MergeItem>;
-    inline void reserve_heap(pq_t& heap, size_t size) {
-        heap.reserve(size);
-    }
-    inline void make_heap(pq_t& heap) {
-        make_dary_heap<4>(heap.begin(), heap.end(), std::greater<>{});
-    }
-    inline void push_heap(pq_t& heap, const MergeItem& item) {
-        heap.push_back(item);
-        push_dary_heap<4>(heap.begin(), heap.end(), std::greater<>{});
-    }
-    inline const MergeItem& top_heap(const pq_t& heap) {
-        return heap.front();
-    }
-    inline void pop_heap(pq_t& heap) {
-        pop_dary_heap<4>(heap.begin(), heap.end(), std::greater<>{});
-        heap.pop_back();
     }
     inline bool empty_heap(const pq_t& heap) {
         return heap.empty();

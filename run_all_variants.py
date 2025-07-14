@@ -30,26 +30,51 @@ def run_variant(build_dir: Path, variant: str) -> dict:
 def run_benchmark_round(build_dir: Path, variants: list[str]) -> dict:
     """Run all variants once in parallel and return results."""
     results = {}
+    pending = len(variants)
+    print(f"Starting {pending} variants in parallel...")
+    
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(run_variant, build_dir, v) for v in variants]
+        futures = {executor.submit(run_variant, build_dir, v): v for v in variants}
+        
         for future in concurrent.futures.as_completed(futures):
+            variant = futures[future]
             try:
                 result = future.result()
                 results.update(result)
+                pending -= 1
+                variant_time = result[variant]['time']
+                mtps = result[variant]['tokens_per_s'] / 1_000_000
+                clean_name = variant[2:] if variant.startswith('__') else variant  # Remove leading __
+                print(f"Finished {clean_name:<14} in {variant_time:.2f}s ({mtps:.2f} MTok/s), {pending} remaining")
             except Exception as e:
-                print(f"Error running variant: {e}")
+                print(f"Error running variant {variant}: {e}")
+                
     return results
 
 def calculate_statistics(all_results: list[dict]) -> dict:
     """Calculate statistics across multiple runs."""
-    stats = defaultdict(lambda: {'cycles': [], 'mtps': [], 'tokens': set()})
+    stats = {}
     
+    # Initialize the data structures
+    for results in all_results:
+        for variant in results:
+            if variant not in stats:
+                stats[variant] = {
+                    'cycles': [],
+                    'mtps': [],
+                    'time': [],
+                    'tokens': set()
+                }
+    
+    # Collect the data
     for results in all_results:
         for variant, result in results.items():
             stats[variant]['cycles'].append(result['cycles_per_token'])
             stats[variant]['mtps'].append(result['tokens_per_s'] / 1_000_000)
+            stats[variant]['time'].append(result['time'])
             stats[variant]['tokens'].add(result['total_tokens'])
     
+    # Calculate final statistics
     final_stats = {}
     for variant, data in stats.items():
         final_stats[variant] = {
@@ -60,6 +85,10 @@ def calculate_statistics(all_results: list[dict]) -> dict:
             'mtps_min': min(data['mtps']),
             'mtps_max': max(data['mtps']),
             'mtps_avg': statistics.mean(data['mtps']),
+            'time_min': min(data['time']),
+            'time_max': max(data['time']),
+            'time_avg': statistics.mean(data['time']),
+            'time_stdev': statistics.stdev(data['time']) if len(data['time']) > 1 else 0,
             'total_tokens': next(iter(data['tokens']))  # All runs should have same token count
         }
     return final_stats
@@ -78,14 +107,16 @@ def main():
 
     # Extract variants
     variants = extract_variants(script_dir / 'CMakeLists.txt')
-    print(f"Detected variants: {' '.join(variants)}")
+    print(f"Detected {len(variants)} variants: {' '.join(variants)}")
 
     # Run benchmarks n times
     print(f"\nStarting {args.n} rounds of benchmarks...")
     all_results = []
     for i in range(args.n):
         print(f"\nRound {i+1}/{args.n}")
+        print("-" * 60)
         results = run_benchmark_round(build_dir, variants)
+        print("-" * 60)
         all_results.append(results)
         
     # Calculate statistics
@@ -98,8 +129,12 @@ def main():
     table_data = []
     for variant, stat in sorted(stats.items(), key=lambda x: x[1]['cycles_avg']):
         pct_slower = (stat['cycles_avg'] / best_avg_cycles - 1.0) * 100
+        clean_name = variant[2:] if variant.startswith('__') else variant  # Remove leading __
         table_data.append([
-            variant,
+            clean_name,
+            f"{stat['time_avg']:.3f}",
+            f"{stat['time_min']:.3f}",
+            f"{stat['time_max']:.3f}",
             f"{stat['mtps_avg']:.3f}",
             f"{stat['mtps_min']:.3f}",
             f"{stat['mtps_max']:.3f}",
@@ -113,13 +148,16 @@ def main():
 
     # Print table
     print(f"\nPerformance Summary ({args.n} runs)")
-    headers = ['Variant', 'MTok/s avg', 'MTok/s min', 'MTok/s max', 
+    headers = ['Variant', 
+              'Time avg', 'Time min', 'Time max',
+              'MTok/s avg', 'MTok/s min', 'MTok/s max', 
               'Cycles avg', 'Cycles min', 'Cycles max', 'Cycles σ', 
               '% slower', 'Total Tok']
     print(tabulate(table_data, headers=headers, tablefmt='psql'))
 
-    # Validate token counts
-    token_counts = {v: s['total_tokens'] for v, s in stats.items()}
+    # Validate token counts with clean names too
+    token_counts = {v[2:] if v.startswith('__') else v: s['total_tokens'] 
+                   for v, s in stats.items()}
     if len(set(token_counts.values())) > 1:
         print("\nWARNING: Inconsistent token counts detected!")
         for variant, count in token_counts.items():

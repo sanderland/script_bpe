@@ -26,11 +26,11 @@ class FastScriptTokenizer(BPETokenizer):
         cpp_script_encoding = [CharSCRIPTEnc(-1, -1, -1, -1) for _ in range(max_cp + 1)]
         for c, (sid, token_pair) in self.pretokenizer.script_encoding.items():
             token_id = self._merge_rules_dict.get(token_pair, (0, -1))[1]
-            cpp_script_encoding[ord(c)] = CharSCRIPTEnc(sid, *token_pair, token_id)
+            cpp_script_encoding[ord(c)] = CharSCRIPTEnc(token_id, sid, *token_pair)
 
         self._cpp_fast_tokenizer = FastTokenizer(
             cpp_script_encoding,
-            self._merge_rules_dict,
+            {k: v[1] for k, v in self._merge_rules_dict.items()},
         )
     
     def encode(self, text: str) -> np.ndarray:

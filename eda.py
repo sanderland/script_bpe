@@ -7,10 +7,6 @@ from script_bpe.bpe.fast.tokenizer import FastScriptTokenizer
 tokenizer_file = 'scriptenc_cb.json.gz'
 vocab_size = 64000
 
-
-corpus_name = 'deu_latn_300mb'
-text ='seit langem ̶ durchaus offensiv'
-
 text = "ます🙇\u200d♀️"
 corpus_name = 'jpn_jpan_300mb'
 
@@ -21,6 +17,12 @@ vocab_size = 256000
 text = "이에요 ̈ 저희"
 corpus_name = 'kor_hang_300mb'
 vocab_size = 64000
+
+
+corpus_name = 'deu_latn_300mb'
+text ='seit langem ̶ durchaus offensiv'
+text = 'hi'
+
 
 
 tokenizer_path = os.path.join(

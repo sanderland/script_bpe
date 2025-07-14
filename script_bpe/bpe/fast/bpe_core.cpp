@@ -50,8 +50,7 @@ namespace script_bpe {
             token_array.resize(2 * required_capacity);
         }
 
-        for(size_t ci = 0; ci < text.length(); ci++) {
-            char32_t ch = text[ci];
+        for(char32_t ch: text) {
             if (static_cast<size_t>(ch) >= char_script_enc_.size()) {
                 continue; // invalid character, skip
             }
@@ -81,10 +80,7 @@ namespace script_bpe {
         apply_bpe_merging(worker_state_, start, end); // last pretoken
         int final_size = remove_gaps(token_array, end);
 #ifndef NO_PYTHON_BINDINGS
-        auto result = py::array_t<int>(final_size);
-        auto buffer = result.request();
-        std::memcpy(buffer.ptr, token_array.data(), final_size * sizeof(int));
-        return result;
+        return py::array_t<int>(final_size, token_array.data());
 #else
         return std::vector<int>(token_array.begin(), token_array.begin() + final_size);
 #endif

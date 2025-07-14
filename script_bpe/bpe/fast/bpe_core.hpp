@@ -102,27 +102,13 @@ struct MergeItem {
     inline bool empty_heap(const pq_t& heap) {
         return heap.empty();
     }
-#elif defined(PQ_STD_PQ)
-    using pq_t = std::priority_queue<MergeItem, std::vector<MergeItem>, std::greater<MergeItem>>;
-    inline void reserve_heap(pq_t& heap, size_t size) {
-        // std::priority_queue does not support reserve, so this is a no-op
-    }
-    inline void make_heap(pq_t&) {} // No-op for std::priority_queue
-    inline void push_heap(pq_t& heap, const MergeItem& item) {
-        heap.push(item);
-    }
-    inline const MergeItem& top_heap(const pq_t& heap) {
-        return heap.top();
-    }
-    inline void pop_heap(pq_t& heap) {
-        heap.pop();
-    }
-    inline bool empty_heap(const pq_t& heap) {
-        return heap.empty();
-    }
-#elif defined(PQ_DARY_HEAP)
+#elif defined(PQ_BOOST_4ARY) or defined(PQ_BOOST_3ARY)
     #include <boost/heap/d_ary_heap.hpp>
+#ifdef PQ_BOOST_4ARY
     using pq_t = boost::heap::d_ary_heap<MergeItem, boost::heap::arity<4>, boost::heap::compare<std::greater<MergeItem>>>;
+#elif defined(PQ_BOOST_3ARY)
+    using pq_t = boost::heap::d_ary_heap<MergeItem, boost::heap::arity<3>, boost::heap::compare<std::greater<MergeItem>>>;
+#endif
     inline void reserve_heap(pq_t& heap, size_t size) {
         heap.reserve(size);
     }
@@ -186,7 +172,7 @@ struct MergeItem {
         return heap.empty();
     }
 #else
-    #error "Define one of: PQ_STD_HEAP, PQ_STD_PQ, PQ_DARY_HEAP, PQ_SKA_MIN_MAX, PQ_SKA_4ARY"
+    #error "Define one of: PQ_STD_HEAP, PQ_BOOST_4ARY, PQ_BOOST_3ARY, PQ_SKA_MIN_MAX, PQ_SKA_4ARY"
 #endif
 
 

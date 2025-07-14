@@ -114,15 +114,17 @@ create_specific_target(
 
 # Create benchmark executables with specific variants
 create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_STD_HEAP" "__gtl_stdheap")
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_STD_PQ" "__gtl_stdpq")
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_DARY_HEAP" "__gtl_dary")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_BOOST_4ARY" "__gtl_boost4ary")
 create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_SKA_MIN_MAX" "__gtl_skaminmax")
 create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_SKA_4ARY" "__gtl_ska4ary")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "gtl" "PQ_BOOST_3ARY" "__gtl_boost3ary")
 
 create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_STD_HEAP" "__absl_stdheap")
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_STD_HEAP" "__ska_stdheap")
-
 create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_SKA_4ARY" "__absl_ska4ary")
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_SKA_4ARY" "__ska_ska4ary")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "absl" "PQ_BOOST_4ARY" "__absl_boost4ary")
 
-create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "std" "PQ_STD_PQ" "__std_stdpq")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_STD_HEAP" "__ska_stdheap")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_SKA_4ARY" "__ska_ska4ary")
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "ska" "PQ_BOOST_4ARY" "__ska_boost4ary")
+
+create_specific_target(benchmark_cpp_fast "script_bpe/bpe/fast/benchmark_cpp_fast.cpp;script_bpe/bpe/fast/bpe_core.cpp" "std" "PQ_STD_HEAP" "__std_stdheap")

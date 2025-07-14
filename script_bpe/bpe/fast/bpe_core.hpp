@@ -35,24 +35,23 @@ using token_arr_t = std::vector<token_t>;
 // All map-specific configuration in a single block
 // typedef std::pair<int, int> merge_key_t;
 using merge_key_t = uint64_t;
-using merge_value_t = std::pair<int32_t, int32_t>;
+using merge_value_t = token_t;
 inline merge_key_t make_merge_key(int a, int b) {
     return (static_cast<uint64_t>(a) << 32) | static_cast<uint32_t>(b);
 }
 
 struct MergeItem {
-    int32_t priority;
-    int32_t from_a;
-    int32_t val_a;
-    int32_t from_b;
-    int32_t val_b;
     int32_t to_id;
+    int32_t from_a;
+    int32_t from_b;
+    int32_t val_a;
+    int32_t val_b;
     
     bool operator<(const MergeItem& other) const {
-        return std::tie(priority, from_a) < std::tie(other.priority, other.from_a);
+        return std::tie(to_id, from_a) < std::tie(other.to_id, other.from_a);
     }
     bool operator>(const MergeItem& other) const {
-        return std::tie(priority, from_a) > std::tie(other.priority, other.from_a);
+        return std::tie(to_id, from_a) > std::tie(other.to_id, other.from_a);
     }
 };
 

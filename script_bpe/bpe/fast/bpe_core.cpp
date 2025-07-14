@@ -96,12 +96,11 @@ namespace script_bpe {
         auto it = merge_rules_.find(merge_key);
         if (it != merge_rules_.end()) {
             push_heap(merge_heap, {
-                it->second.first,
+                it->second,
                 a,
-                token_array[a],
                 b,
+                token_array[a],
                 token_array[b],
-                it->second.second
             });
         }
     }

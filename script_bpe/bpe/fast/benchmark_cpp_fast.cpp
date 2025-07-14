@@ -77,10 +77,10 @@ int main() {
     }
 
     // Build merge rules map
-    std::unordered_map<std::pair<int, int>, std::pair<int, int>> merge_rules;
+    std::unordered_map<std::pair<int, int>, int> merge_rules;
     merge_rules.reserve(merge_rules_data.size());
     for (const auto& [a, b, priority, to_id] : merge_rules_data) {
-        merge_rules[{a, b}] = {priority, to_id};
+        merge_rules[{a, b}] = to_id;
     }
 
     // Create tokenizer with the loaded data

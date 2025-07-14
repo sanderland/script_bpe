@@ -85,9 +85,6 @@ struct MergeItem {
     inline void reserve_heap(pq_t& heap, size_t size) {
         heap.reserve(size);
     }
-    inline void make_heap(pq_t& heap) {
-        std::make_heap(heap.begin(), heap.end(), std::greater<MergeItem>());
-    }
     inline void push_heap(pq_t& heap, const MergeItem& item) {
         heap.push_back(item);
         std::push_heap(heap.begin(), heap.end(), std::greater<MergeItem>());
@@ -108,7 +105,6 @@ struct MergeItem {
     inline void reserve_heap(pq_t& heap, size_t size) {
         heap.reserve(size);
     }
-    inline void make_heap(pq_t&) {} // No-op
     inline void push_heap(pq_t& heap, const MergeItem& item) {
         heap.push(item);
     }
@@ -144,6 +140,7 @@ namespace script_bpe {
     public:
         FastTokenizer(const std::vector<CharSCRIPTEnc>& char_script_enc,
                      const std::unordered_map<std::pair<int, int>, merge_value_t>& merge_rules);
+        ~FastTokenizer();
         encode_return_t encode(const std::u32string& text);
         
     private:

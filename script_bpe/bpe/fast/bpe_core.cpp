@@ -1,16 +1,17 @@
 #include "bpe_core.hpp"
 #include <iostream>
+#include <iomanip>
 
 // Helper macro for stringification
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
 namespace script_bpe {
-  
+
     FastTokenizer::FastTokenizer(const std::vector<CharSCRIPTEnc>& char_script_enc,
                                      const std::unordered_map<std::pair<int, int>, merge_value_t>& merge_rules)
                 : char_script_enc_(char_script_enc) {
-        
+
         merge_rules_.reserve(merge_rules.size() * 2); // work well for all variants
         for (const auto& rule : merge_rules) {
             merge_rules_[make_merge_key(rule.first.first, rule.first.second)] = rule.second;
@@ -112,27 +113,29 @@ namespace script_bpe {
     }
 
     void FastTokenizer::apply_bpe_merging(WorkerState& worker_state, int start, int end) {
-        if (end - start < 2) return; // Need at least 2 tokens to merge
-        
+        if (end - start < 2) {
+            return; // Need at least 2 tokens to merge
+        }
+
         // Find all possible merges in this chunk - use consecutive individual tokens
         auto& token_array = worker_state.token_array;
         auto& merge_heap = worker_state.merge_heap;
         for (int i = start; i < end - 1; ++i) {
             this->try_push_merge(merge_heap, i, i+1, token_array);
         }
-        
+
         // Apply merges in priority order
         while (!empty_heap(merge_heap)) {
             MergeItem item = top_heap(merge_heap);
             pop_heap(merge_heap);
-            // Verify merge is still valid
-            if (token_array[item.from_a] != item.val_a || 
+            // Verify merge is still valid - close to 50-50
+            if (token_array[item.from_a] != item.val_a ||
                 token_array[item.from_b] != item.val_b) continue;
-            
+
             // Perform merge - replace first token with merged token, mark second token as deleted
             token_array[item.from_a] = item.to_id;
             token_array[item.from_b] = -1;  // Mark as deleted
-            
+
             // Add new potential merges
             {
                 auto& tokens = worker_state.token_array;
@@ -157,6 +160,9 @@ namespace script_bpe {
                 }
             }
         }
+    }
+
+    FastTokenizer::~FastTokenizer() {
     }
 
 } // namespace script_bpe

@@ -26,7 +26,8 @@ uint64_t GET_CYCLES() {
 #include <codecvt>
 #pragma clang diagnostic pop
 
-const std::string BASE_PATH = "/home/sander_cohere_com/script_bpe";
+//const std::string BASE_PATH = "/home/sander_cohere_com/script_bpe";
+const std::string BASE_PATH = "/Users/sander/Desktop/script_bpe/";
 int main() {
     // Hardcoded paths for demonstration
     std::string script_encoding_path = BASE_PATH + "/results/script_encoding.txt";

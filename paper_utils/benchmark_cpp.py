@@ -95,7 +95,7 @@ def main(args, corpora):
             )
         else:
             dataset = load_dataset(
-                "catherinearnett/monolingual-tokenizer-data",
+                "sanderland/monolingual-tokenizer-data",
                 data_files=[f"{corpus_name}.txt"],
                 split="train",
                 streaming=True,

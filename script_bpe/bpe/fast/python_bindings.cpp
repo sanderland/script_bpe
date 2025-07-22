@@ -12,7 +12,7 @@ PYBIND11_MODULE(fast_tokenizer_cpp, m) {
     
     // Expose CharSCRIPTEnc struct to Python
     py::class_<script_bpe::CharSCRIPTEnc>(m, "CharSCRIPTEnc")
-        .def(py::init<int, int, int, int>());
+        .def(py::init<int, base_token_t, base_token_t, base_token_t>());
 
     py::class_<script_bpe::FastTokenizer>(m, "FastTokenizer")
         .def(py::init<const std::vector<script_bpe::CharSCRIPTEnc>&,

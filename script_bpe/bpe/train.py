@@ -220,6 +220,9 @@ def train_bpe(
 
         # --- Create New Token and Broadcast Merge ---
         tokens[next_token_id] = Token(id=next_token_id, base_tokens=tokens[ta].base_tokens + tokens[tb].base_tokens)
+        # if token is ' เพราะเป' break
+        if next_token_id == 16523:  # Special case for debugging
+            breakpoint()
         merge_rules.append(MergeRule(tokens_from=(ta, tb), token_to=next_token_id))
         for q in cmd_queues:
             q.put((most_common_pair, next_token_id))

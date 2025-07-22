@@ -32,6 +32,7 @@ NO_SPLIT_REGEX = r"\A.*\Z"
 
 # Registry of available pretokenizers
 PRETOKENIZER_REGISTRY: dict[str, Callable[[], BasePretokenizer]] = {
+    "bytes_gpt2": lambda: RegexBytePretokenizer({"regex": GPT2_REGEX, "enforce_char_boundaries": False}),
     "bytes_gpt4": lambda: RegexBytePretokenizer({"regex": GPT4_REGEX, "enforce_char_boundaries": False}),
     "bytes_gpt4_cb": lambda: RegexBytePretokenizer({"regex": GPT4_REGEX, "enforce_char_boundaries": True}),
     "bytes_gpt4o": lambda: RegexBytePretokenizer({"regex": GPT4O_REGEX, "enforce_char_boundaries": False}),

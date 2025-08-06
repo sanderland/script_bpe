@@ -149,6 +149,13 @@ class ScriptEncodingPretokenizer(BasePretokenizer):
             return False  # one is full, the other is partial
         return not self.is_index_token(token_seq1[0])
 
+    def token_allowed(self, token_seq: InputTokenSeq) -> bool:
+        if not self.enforce_char_boundaries:
+            return True
+        if len(token_seq) % 2 != 0:
+            return len(token_seq) == 1 
+        return not self.is_index_token(token_seq[0]) # index token only as singleton
+
     # utility
     @functools.cache
     def token_script_name(self, block_token_id: int) -> str:  # maps token to block name without sub-block

@@ -8,6 +8,7 @@ from script_bpe import PRETOKENIZER_REGISTRY, BPETokenizer, get_pretokenizer
 from script_bpe.bpe import BPETokenizer, train_bpe
 from script_bpe.corpus.registry import load_corpus_by_name
 from script_bpe.pretokenize import get_pretokenizer
+from script_bpe.unigram import UnigramModel, train_unigram
 from script_bpe.utils import PROJECT_ROOT, create_logger
 
 logger = create_logger("main")
@@ -16,19 +17,28 @@ logger = create_logger("main")
 # ---- file utils ----
 
 
-def tokenizer_save_path(file: str, n: int, pretokenizer_name: str) -> str:
+def tokenizer_save_path(file: str, n: int, pretokenizer_name: str, model_name: str) -> str:
     """Get the save path for a tokenizer"""
-    return os.path.join(PROJECT_ROOT, f"results/tokenizers/{file}/n{n}/{pretokenizer_name}.json.gz")
+    if model_name == "bpe":
+        dir = "tokenizers"
+    elif model_name == "unigram":
+        dir = "unigram_tokenizers"
+    else:
+        raise ValueError(f"Unknown model name: {model_name}")
+    return os.path.join(PROJECT_ROOT, f"results/{dir}/{file}/n{n}/{pretokenizer_name}.json.gz")
 
 
-def load_tokenizers_for_dataset(file, n):
+def load_tokenizers_for_dataset(file, n, model_name="bpe"):
     """Load all tokenizers for a given dataset and additional vocabulary size."""
     tokenizers = {}
     for ptok in PRETOKENIZER_REGISTRY:
-        path = tokenizer_save_path(file, n, ptok)
+        path = tokenizer_save_path(file, n, ptok, model_name)
         tokenizers[ptok] = None
         try:
-            tokenizers[ptok] = BPETokenizer.load(path)
+            if model_name == "bpe":
+                tokenizers[ptok] = BPETokenizer.load(path)
+            elif model_name == "unigram":
+                tokenizers[ptok] = UnigramModel.load(path)
             for t in tokenizers[ptok].metadata["tokens"]:
                 if t["final_count"] < 0:
                     print(f"Final count for token '{t}' is negative in tokenizer '{ptok}' for {file} at {path}")
@@ -44,18 +54,27 @@ def load_tokenizers_for_dataset(file, n):
 
 def train_tokenizer(
     pretokenizer_name,
+    model_name,
     corpus_name,
     additional_vocab_size,
     n_cpus: int,
     retrain=False,
     report=False,
-) -> BPETokenizer | None:
-    save_path = tokenizer_save_path(corpus_name, additional_vocab_size, pretokenizer_name)
+) -> BPETokenizer | UnigramModel | None:
+    save_path = tokenizer_save_path(corpus_name, additional_vocab_size, pretokenizer_name, model_name)
 
+    if model_name == "bpe":
+        tokenizer_class = BPETokenizer
+        train_func = train_bpe
+    elif model_name == "unigram":
+        tokenizer_class = UnigramModel
+        train_func = train_unigram
+    else:
+        raise ValueError(f"Unknown model name: {model_name}")
     tokenizer = None
     if not retrain:
         try:
-            tokenizer = BPETokenizer.load(save_path)
+            tokenizer = tokenizer_class.load(save_path)
             logger.info(f"Tokenizer loaded from {save_path}")
         except (FileNotFoundError, JSONDecodeError) as e:
             if os.path.exists(save_path):
@@ -70,7 +89,7 @@ def train_tokenizer(
         if additional_vocab_size <= 0:  # allows to just prepare corpus
             logger.warning("Additional vocabulary size is 0, skipping training.")
             return None
-        tokenizer = train_bpe(
+        tokenizer = train_func(
             pretokenizer=pretokenizer,
             corpus=corpus,
             additional_vocab_size=additional_vocab_size,
@@ -96,6 +115,7 @@ def main():
         "--corpus", type=str, default="kor_hang_300mb", help="Name for corpus to train on, see load_dataset"
     )
     parser.add_argument("--pretokenizer", type=str, default="scriptenc_cb", help="Pretokenizer name")
+    parser.add_argument("--model", type=str, default="bpe", help="Model name (bpe/unigram)")
     parser.add_argument("--additional_vocab_size", "-n", type=int, default=100, help="Additional vocabulary size")
     parser.add_argument("--retrain", action="store_true", help="Force retraining of the tokenizer, even if it exists")
     parser.add_argument("--parallel", "-p", type=int, default=4, help="Number of CPUs to use for training")
@@ -104,6 +124,7 @@ def main():
 
     train_tokenizer(
         pretokenizer_name=args.pretokenizer,
+        model_name=args.model,
         corpus_name=args.corpus,
         additional_vocab_size=args.additional_vocab_size,
         retrain=args.retrain,

@@ -70,3 +70,6 @@ class BasePretokenizer(ABC):
     def bpe_merge_allowed(self, token_seq1: InputTokenSeq, token_seq2: InputTokenSeq) -> bool:
         """In BPE training, can token_seq1 and token_seq2 be merged?"""
         return True
+
+    def token_allowed(self, token_seq: InputTokenSeq) -> bool:
+        return True

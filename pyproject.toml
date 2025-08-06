@@ -18,6 +18,7 @@ dependencies = [
     "pytest>=8.3.5",
     "pip>=25.1.1", # avoids jupyter notebook in vscode issues
     "jinja2>=3.1.6",
+    "scipy>=1.16.1",
 ]
 
 

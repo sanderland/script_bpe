@@ -69,3 +69,15 @@ class RegexBytePretokenizer(BasePretokenizer):
         elif not partial_seq1 and not partial_seq2:
             return True  # both are full sequences
         return False
+
+    def token_allowed(self, token_seq: InputTokenSeq) -> bool:
+        if not self.enforce_char_boundaries:
+            return True
+        try:
+            self.decode(token_seq, errors="strict")
+            return True
+        except UnicodeDecodeError: # should be a single char or prefix, so [not-cont] + [cont,...]
+            bytes = self._to_bytes(token_seq)
+            return utf_byte_type(bytes[0]) != 0 and not any(utf_byte_type(b)==0 for b in bytes[1:])
+            
+            

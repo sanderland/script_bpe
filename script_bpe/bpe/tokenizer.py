@@ -179,7 +179,7 @@ class BPETokenizer:
         report += f"- Number of merge rules trained: {stats['num_merge_rules']}\n"
         report += f"- Total number of tokens: {stats['num_tokens']}\n"
         report += f"- Last merge frequency: {stats['last_merge_count']}\n"
-        report += f"- Average token length: {stats['avg_token_length_bt']:.2f} base tokens\n"
+        report += f"- Average token length: {stats['avg_token_length_bt']:.4f} base tokens\n"
         report += f"- Number of undecodeable tokens: {stats['num_undecodeable']}\n"
 
         for longest_type, longest_tokens in [

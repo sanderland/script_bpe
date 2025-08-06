@@ -138,6 +138,7 @@ class UnigramModel:
         """
         self.pretokenizer = pretokenizer
         self.tokens = tokens or []
+        self.trie = Trie(self.tokens)
         self.metadata = metadata or {}
         self.tokens_by_id = {t.id: t for t in self.tokens} if self.tokens else {}
 
@@ -219,16 +220,11 @@ class UnigramModel:
         token_lengths = [len(t.base_tokens) for t in self.tokens]
         char_lengths = [len(self.decode([t.id])) for t in self.tokens]
         
-        # Token probabilities
-        probs = [math.exp(t.log_prob) for t in self.tokens]
-        
-        # Find special tokens (those with very low probability or locked)
-        special_tokens = [t for t in self.tokens if t.locked or t.log_prob < math.log(1e-6)]
-        
         # Find undecodable tokens
         is_undecodable = {
             t.id: "�" in self.pretokenizer.decode(t.base_tokens, errors="replace")
             for t in self.tokens
+            if not t.locked
         }
         
         return {
@@ -236,25 +232,14 @@ class UnigramModel:
             'num_tokens': num_tokens,
             'num_base_tokens': len(base_tokens),
             'num_multi_tokens': len(multi_token),
-            'num_special_tokens': len(special_tokens),
             'num_undecodeable': sum(is_undecodable.values()),
             
             # Length statistics
             'avg_token_length_bt': sum(token_lengths) / num_tokens if num_tokens > 0 else 0,
-            'max_token_length_bt': max(token_lengths, default=0),
             'avg_char_length': sum(char_lengths) / num_tokens if num_tokens > 0 else 0,
-            'max_char_length': max(char_lengths, default=0),
-            
-            # Probability statistics
-            'min_prob': min(probs, default=0),
-            'max_prob': max(probs, default=0),
-            'avg_prob': sum(probs) / num_tokens if num_tokens > 0 else 0,
-            'entropy_per_token': -sum(p * math.log(p) if p > 0 else 0 for p in probs),
             
             # Longest tokens for reporting
             'longest_tokens': sorted(self.tokens, key=lambda t: -len(t.base_tokens))[:n_longest],
-            'most_probable_tokens': sorted(self.tokens, key=lambda t: -t.log_prob)[:n_longest],
-            'least_probable_tokens': sorted(self.tokens, key=lambda t: t.log_prob)[:n_longest],
         }
 
     def report(self, n_longest=20) -> str:
@@ -268,20 +253,11 @@ class UnigramModel:
             f"- **Total tokens:** {stats['num_tokens']:,d}",
             f"- **Base tokens (single token):** {stats['num_base_tokens']:,d}",
             f"- **Multi-token sequences:** {stats['num_multi_tokens']:,d}",
-            f"- **Special tokens (locked/very low prob):** {stats['num_special_tokens']:,d}",
             f"- **Undecodable tokens:** {stats['num_undecodeable']:,d}",
             "",
             "## Token Length Statistics",
-            f"- **Average base tokens per token:** {stats['avg_token_length_bt']:.2f}",
-            f"- **Maximum base tokens per token:** {stats['max_token_length_bt']}",
-            f"- **Average characters per token:** {stats['avg_char_length']:.2f}",
-            f"- **Maximum characters per token:** {stats['max_char_length']}",
-            "",
-            "## Token Probability Distribution",
-            f"- **Highest probability token:** {math.exp(stats['most_probable_tokens'][0].log_prob):.4f}",
-            f"- **Lowest probability token:** {math.exp(stats['least_probable_tokens'][0].log_prob):.4g}",
-            f"- **Average token probability:** {stats['avg_prob']:.4g}",
-            f"- **Entropy per token:** {stats['entropy_per_token']:.4f} bits",
+            f"- **Average base tokens per token:** {stats['avg_token_length_bt']:.4f}",
+            f"- **Average characters per token:** {stats['avg_char_length']:.4f}",
             "",
         ]
         
@@ -304,19 +280,36 @@ class UnigramModel:
         ])
         
         # Add most probable tokens section
-        most_probable_table = []
-        for token in stats['most_probable_tokens'][:10]:
-            token_str = self.pretokenizer.tokens_to_readable_string(token.base_tokens)
-            most_probable_table.append({
-                'ID': token.id,
-                'Probability': f"{math.exp(token.log_prob):.4f}",
-                'Text': repr(token_str)
-            })
+        tokens_with_prob = [{
+            'ID': token.id,
+            'Log Probability': f"{token.log_prob:.4f}",
+            'Text': repr(self.pretokenizer.tokens_to_readable_string(token.base_tokens))
+            } for token in sorted(self.tokens, key=lambda t: -t.log_prob)
+            if not token.locked
+            ]
         
         report.extend([
-            "## Most Probable Tokens",
+            "## Non-base tokens by probability",
             "",
-            tabulate.tabulate(most_probable_table, headers="keys", tablefmt="github"),
+            tabulate.tabulate(tokens_with_prob, headers="keys", tablefmt="github"),
+            ""
+        ])
+        
+        # Add metadata section if available
+        if self.metadata and len(self.metadata) > 0:
+            metadata_items = [[k, v] for k, v in self.metadata.items() if k != "tokens"]
+            if metadata_items:
+                report.extend([
+                    "## Metadata",
+                    "",
+                    tabulate.tabulate(metadata_items, headers=["Key", "Value"], tablefmt="github"),
+                    ""
+                ])
+        
+        report.extend([
+            "## Tokens by probability",
+            "",
+            tabulate.tabulate(tokens_with_prob, headers="keys", tablefmt="github"),
             ""
         ])
         

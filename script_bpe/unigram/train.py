@@ -14,11 +14,11 @@ def log_examples(logger, pretokenizer: BasePretokenizer, tokens_with_scores: lis
     for i, (t, score) in enumerate(tokens_with_scores):
         if len(tokens_with_scores) > 2*n:
             if i == n:
-                logger.debug(" │  ├─ ...")
+                logger.debug("   │  ├─ ...")
             if n < i < len(tokens_with_scores) - n:
                 continue
         list_item = " ├─" if i < len(tokens_with_scores) - 1 else " └─"
-        logger.debug(f" │ {list_item} {repr(pretokenizer.decode(t.base_tokens)):25}  {score_label} = {score:10.3g}  base_tokens = {list(t.base_tokens)}")
+        logger.debug(f"   │ {list_item} {repr(pretokenizer.decode(t.base_tokens)):25}  {score_label} = {score:10.3g}  base_tokens = {list(t.base_tokens)}")
 
 
 def make_initial_vocab(
@@ -47,8 +47,8 @@ def make_initial_vocab(
     tokens = [UnigramToken(base_tokens=token_array(base_token_seq), id=i, log_prob=math.log(score) - log_sum_scores, locked=base_token_seq in base_tokens) for i, (score, base_token_seq) in enumerate(selected_tokens)]
     
     logger.info(f"🌱 Selected {len(pretokenizer.base_tokens):,} + {additional_num_tokens:,} = {len(tokens):,} initial tokens from {len(all_tokens):,} candidates")
-    logger.debug(f" ├─ Max length: {max_token_length}")
-    logger.debug(f" └─ Source: {corpus.name}: {corpus.metadata}")
+    logger.debug(f"   ├─ Max length: {max_token_length}")
+    logger.debug(f"   └─ Source: {corpus.name}: {corpus.metadata}")
     return tokens
 
 def run_e_step(
@@ -102,7 +102,7 @@ def run_m_step(
     if num_removed > 0:
         filtered_ids = {t.id for t in filtered_tokens}
         removed_tokens = [(t, expected_count[t.id]) for t in model.tokens if t.id not in filtered_ids]
-        logger.debug(f" ├─ Removed {num_removed} low-frequency tokens below threshold {k_expected_frequency_threshold} - examples:")
+        logger.debug(f"   ├─ Removed {num_removed} low-frequency tokens below threshold {k_expected_frequency_threshold} - examples:")
         log_examples(logger, pretokenizer, removed_tokens, "expected count")
             
         model = UnigramModel(pretokenizer, filtered_tokens)
@@ -143,7 +143,7 @@ def prune_tokens(
     """
     # Calculate target size based on vocab size and shrinking factor
     num_non_base_tokens = len(model.tokens) - len(pretokenizer.base_tokens)
-    shrink_n = int( num_non_base_tokens * shrinking_factor)
+    shrink_n = int( num_non_base_tokens * (1-shrinking_factor))
     target_size = max(desired_vocab_size, num_non_base_tokens - shrink_n)
 
     # Initialize data structures for tracking token pruning
@@ -242,22 +242,22 @@ def prune_tokens(
     
 
     logger.info(f"✂️  Pruning vocabulary from {len(model.tokens):,} to target {target_size:,} -> new vocab size {len(new_tokens):,}")
-    logger.debug(f" ├─ Target size: {target_size:,} based on shrinking factor {shrinking_factor} * non base tokens {num_non_base_tokens:,} and desired vocab size {desired_vocab_size}")    
-    logger.debug(f" ├─ Dropped {len(unused_tokens):,} tokens not in any optimal path")
+    logger.debug(f"   ├─ Target size: {target_size:,} based on shrinking factor {shrinking_factor} * non base tokens {num_non_base_tokens:,} and desired vocab size {desired_vocab_size}")    
+    logger.debug(f"   ├─ Dropped {len(unused_tokens):,} tokens not in any optimal path")
     if unused_tokens:
         log_examples(logger, pretokenizer, [(t, t.log_prob) for t in unused_tokens], "logprob")
-    logger.debug(f" ├─ Kept {len(new_tokens)} locked tokens")
+    logger.debug(f"   ├─ Kept {len(new_tokens)} locked tokens")
     if defended_tokens:
-        logger.debug(f" ├─ Defended {len(defended_tokens):,} tokens from being removed along with their alternatives")
+        logger.debug(f"   ├─ Defended {len(defended_tokens):,} tokens from being removed along with their alternatives")
         log_examples(logger, pretokenizer, defended_tokens, "loss")
 
-    logger.debug(f" ├─ Pruned {len(pruned_tokens):,} tokens from {len(candidates):,} candidates")
+    logger.debug(f"   ├─ Pruned {len(pruned_tokens):,} tokens from {len(candidates):,} candidates")
     if pruned_tokens:
         log_examples(logger, pretokenizer, pruned_tokens, "loss")
     if candidates:
-        logger.debug(f" └─ Candidates loss range: {candidates[0][1]:.4g} to {candidates[-1][1]:.4g}")
+        logger.debug(f"   └─ Candidates loss range: {candidates[0][1]:.4g} to {candidates[-1][1]:.4g}")
     else:
-        logger.info(" └─ No candidates for pruning!")
+        logger.info("   └─ No candidates for pruning!")
     
     return UnigramModel(model.pretokenizer, new_tokens), len(unused_tokens), len(pruned_tokens), defended_tokens
 
@@ -323,7 +323,7 @@ def train_unigram(
     verbose: bool = True,
     # unigram specific settings, some experimental
     max_token_len: int = 16,
-    initial_vocab_factor: int = 4,
+    initial_vocab_factor: int = 10,
     pre_final_vocab_factor: float = 1.1,
     pruning_shrinking_factor: float = 0.75,
     m_step_dp_smoothing: bool = True,
@@ -349,22 +349,22 @@ def train_unigram(
     for iter in range(max_iterations):
         # Sub-EM Iterations
         for sub_iter in range(num_sub_iterations):
+            logger.info(f"🔄 EM Iteration {iter + 1}.{sub_iter + 1}. Model size {len(model.tokens):,}")
             expected_count, objective, total_tokens = run_e_step(logger=logger, corpus=corpus, model=model)
             model, m_step_removed = run_m_step(logger=logger, pretokenizer=pretokenizer, model=model, expected_count=expected_count, dp_smoothing=m_step_dp_smoothing, k_expected_frequency_threshold=m_step_low_count_threshold)
             totals_removed["M Step Low Count"].append(m_step_removed)
             avg_tokens_per_pretoken = 1.0 * total_tokens / total_pretokens
-            logger.info(f"🔄 EM Iteration {iter + 1}.{sub_iter + 1}. Model size {len(model.tokens):,}")
-            logger.debug(f" ├─ Objective: {objective:.4f}")
-            logger.debug(f" ├─ Total tokens: {total_tokens:,d}")
-            logger.debug(f" └─ Avg tokens/pretoken: {avg_tokens_per_pretoken:.4f}")
+            logger.debug(f"   ├─ Objective: {objective:.4f}")
+            logger.debug(f"   ├─ Total tokens: {total_tokens:,d}")
+            logger.debug(f"   └─ Avg tokens/pretoken: {avg_tokens_per_pretoken:.4f}")
 
         # Check Stopping Condition
         current_size = len(model.tokens)
         if current_size <= prune_to_vocab_size:
             if verbose: 
                 logger.info(f"🎯 Target vocabulary size for EM iterations reached")
-                logger.debug(f" ├─ Current: {current_size:,}")
-                logger.debug(f" └─ Target:  {prune_to_vocab_size:,}")
+                logger.debug(f"   ├─ Current: {current_size:,}")
+                logger.debug(f"   └─ Target:  {prune_to_vocab_size:,}")
             break
 
         # Pruning Step
@@ -386,19 +386,19 @@ def train_unigram(
         num_defended = len(defended_token_ids)
         defended_in_final = [(t, t.log_prob) for t in model.tokens if t.id in defended_token_ids]
         logger.info(f"🎉 Training completed successfully! Avg tokens/pretoken: {stats['tokens/pretoken']:.4f}")
-        logger.debug("📊 Token Removal Statistics:")
+        logger.debug("  📊 Token Removal Statistics:")
         for key, value in totals_removed.items():
-            logger.debug(f" ├─ {key:<20} {sum(value):6,d} tokens" + (f" in steps {value}" if len(value) > 1 else ""))
+            logger.debug(f"   ├─ {key:<20} {sum(value):6,d} tokens" + (f" in steps {value}" if len(value) > 1 else ""))
         if defensive_prune:
-            logger.debug(f" ├─ Defended {num_defended:,} tokens from being removed along with their alternatives.")
+            logger.debug(f"   ├─ Defended {num_defended:,} tokens from being removed along with their alternatives.")
             if defended_in_final:
-                logger.debug(f" ├─ {len(defended_in_final):,} defended tokens made it to the final vocabulary.")
+                logger.debug(f"   ├─ {len(defended_in_final):,} defended tokens made it to the final vocabulary.")
                 log_examples(logger, pretokenizer, defended_in_final, "logprob")
             else:
-                logger.debug(" ├─ No defended tokens made it to the final vocabulary.")
-        logger.debug("📊 Compression Statistics:")
-        logger.debug(f" ├─ Total tokens: {stats['total_tokens']:,d}")
-        logger.debug(f" └─ Avg tokens/pretoken: {stats['tokens/pretoken']:.4f}")
+                logger.debug("   ├─ No defended tokens made it to the final vocabulary.")
+        logger.debug("  📊 Compression Statistics:")
+        logger.debug(f"   ├─ Total tokens: {stats['total_tokens']:,d}")
+        logger.debug(f"   └─ Avg tokens/pretoken: {stats['tokens/pretoken']:.4f}")
 
     model.metadata = stats
     return model

@@ -43,7 +43,7 @@ def load_corpus_by_name(
 
     if corpus_name.endswith("300mb"):
         return create_huggingface_corpus(
-            "catherinearnett/monolingual-tokenizer-data",
+            "sanderland/monolingual-tokenizer-data",
             corpus_name=corpus_name,
             base_dir=base_dir,
             pretokenizer=pretokenizer,

@@ -109,9 +109,6 @@ def train_tokenizer(
 def main():
     parser = argparse.ArgumentParser(description="Train BPE with optional profiling.")
     parser.add_argument(
-        "--dataset", type=str, default="catherinearnett/monolingual-tokenizer-data", help="HuggingFace dataset name"
-    )
-    parser.add_argument(
         "--corpus", type=str, default="kor_hang_300mb", help="Name for corpus to train on, see load_dataset"
     )
     parser.add_argument("--pretokenizer", type=str, default="scriptenc_cb", help="Pretokenizer name")

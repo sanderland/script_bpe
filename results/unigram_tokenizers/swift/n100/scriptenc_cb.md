@@ -7,8 +7,8 @@
 - **Undecodable tokens:** 0
 
 ## Token Length Statistics
-- **Average base tokens per token:** 1.17
-- **Average characters per token:** 1.06
+- **Average base tokens per token:** 1.1667
+- **Average characters per token:** 1.0585
 
 ## Longest Tokens (by base tokens)
 

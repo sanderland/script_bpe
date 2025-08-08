@@ -1,6 +1,5 @@
 import functools
-import itertools
-import json
+import copy
 import os
 import unicodedata
 from collections import Counter, defaultdict
@@ -103,7 +102,7 @@ class ScriptEncoding:
     DEFAULT_SCRIPT_CAT_WITH_SPACE = [(s, "LM") for s in SCRIPTS_WHICH_USE_SPACES] + [("Common", "PS")]
 
     def script_encoding_blocks(self):
-        sc_map = unicode_script_map()
+        sc_map = copy.deepcopy(unicode_script_map())
 
         chars_by_sc = defaultdict(list)
         num_chars_by_script = Counter()

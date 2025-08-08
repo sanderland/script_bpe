@@ -55,7 +55,7 @@ def run_e_step(
     logger: logging.Logger,
     corpus: PretokenizedCorpus,
     model: UnigramModel,
-) -> tuple[list[float], float, int]:
+) -> tuple[dict[int, float], float, int]:
     """Performs the Expectation step of the EM algorithm for Unigram."""
         
     expected_count = defaultdict(float)
@@ -102,7 +102,7 @@ def run_m_step(
     if num_removed > 0:
         filtered_ids = {t.id for t in filtered_tokens}
         removed_tokens = [(t, expected_count[t.id]) for t in model.tokens if t.id not in filtered_ids]
-        logger.debug(f"   ├─ Removed {num_removed} low-frequency tokens below threshold {k_expected_frequency_threshold} - examples:")
+        logger.debug(f"   ├─ Removed {num_removed:,} low-frequency tokens below threshold {k_expected_frequency_threshold} - examples:")
         log_examples(logger, pretokenizer, removed_tokens, "expected count")
             
         model = UnigramModel(pretokenizer, filtered_tokens)
@@ -126,7 +126,7 @@ def prune_tokens(
     desired_vocab_size: int,
     shrinking_factor: float,
     defensive: bool,
-) -> tuple[UnigramModel, int]:
+) -> tuple[UnigramModel, int, int, list[tuple[UnigramToken, float]]]:
     """
     Prunes tokens based on their importance to the model using Viterbi-based pruning.
     This is a Python port of the C++ PruneSentencePieces function from SentencePiece.
@@ -147,7 +147,7 @@ def prune_tokens(
     target_size = max(desired_vocab_size, num_non_base_tokens - shrink_n)
 
     # Initialize data structures for tracking token pruning
-    always_keep = {t.id: True for t in model.tokens}  # Whether each token must be kept TODO: THIS NAME IS CONFUSING AF
+    split_viterbi_path = {t.id: False for t in model.tokens}  # TODO - remove this, count = 0 takes care of it
     alternatives = {t.id: [] for t in model.tokens}  # Alternative segmentations for each token
 
     # First, segments the current tokens to know how each token is resegmented if removed
@@ -155,37 +155,31 @@ def prune_tokens(
     # alternatives[i] stores the sequence of second best tokens.
     for token in model.tokens:
         if token.locked:  # Skip locked tokens (must be kept)
-            always_keep[token.id] = True
             continue
             
         lattice = model.make_lattice(token.base_tokens)
         best_path, _ = lattice.viterbi(allow_single_token=True)
         
         if len(best_path) >= 2:  # Can safely remove this token if its Viterbi path is split
-            always_keep[token.id] = False
+            split_viterbi_path[token.id] = True
         else:  # Try to find alternative segmentation without single-token path
             alt_path, _ = lattice.viterbi(allow_single_token=False)
-            if alt_path: # Found alternative segmentation
-                always_keep[token.id] = True
+            if alt_path:  # Found alternative segmentation → may remove; record alternatives
                 alternatives[token.id] = [t.id for t in alt_path]
-            else: # No alternative segmentation found, must keep
-                always_keep[token.id] = True
+
 
     # Second, segments all sentences to compute likelihood
     # with a unigram language model. inverted[i] stores
-    # the set of sentence index where the tokens[i] appears.
+    # a list of training texts where the tokens[i] appears.
     token_count = {t.id: 0.0 for t in model.tokens}
-    inverted = {t.id: [] for t in model.tokens}
-    vsum = sum(count for _, count in corpus)
 
     for base_token_seq, count in corpus:
         lattice = model.make_lattice(base_token_seq)
         viterbi_path, _ = lattice.viterbi()
         for token in viterbi_path:
             token_count[token.id] += count
-            inverted[token.id].append(base_token_seq)
 
-    total_count = sum(token_count)
+    total_count = sum(token_count.values())
     log_total = math.log(total_count)
     candidates = []
     new_tokens = []
@@ -195,9 +189,12 @@ def prune_tokens(
     # token[id] in the sentences are replaced with alternatives[i] when token[i] is removed.
     unused_tokens = []
     for token in model.tokens:
-        # not found in Viterbi path. Can remove this entry safely.        
-        if (token_count[token.id] == 0 or not always_keep[token.id]) and not token.locked:
+        # Not found in Viterbi path. Can remove this entry safely.
+        if token_count[token.id] == 0 and not token.locked:
             unused_tokens.append(token)
+        if split_viterbi_path[token.id]:
+            assert token_count[token.id] == 0, f"Token {token.id} has count {token_count[token.id]} but is split in Viterbi path"
+
     unused_token_ids = {t.id for t in unused_tokens}
 
     for token in model.tokens:
@@ -219,10 +216,8 @@ def prune_tokens(
                 math.log(token_count[alt_id] + token_count[token.id]) - logsum_alt
                 for alt_id in alternatives[token.id]
             )
-            # The frequency of token[i] = sum of pretoken freqs where token[i] appears
-            token_i_freq = sum(count for pretoken, count in corpus if pretoken in inverted[token.id]) / vsum            
             # loss: the diff of likelihood after removing the token[i]
-            loss = token_i_freq * (logprob_token - logprob_alt)
+            loss = (token_count[token.id] / total_count) * (logprob_token - logprob_alt)
             # (NEW FEATURE) if alternatives are already gone, optionally prevent removing this token
             defended = any(tid in unused_token_ids for tid in alternatives[token.id])
             candidates.append((token, loss, defended))
@@ -238,8 +233,8 @@ def prune_tokens(
             defended_tokens.append((token, loss))
             new_tokens.append(token)
 
-    pruned_tokens = [(token, loss) for token, loss, _ in candidates if token not in new_tokens]
-    
+    new_token_ids = {t.id for t in new_tokens}
+    pruned_tokens = [(token, loss) for token, loss, _ in candidates if token.id not in new_token_ids]
 
     logger.info(f"✂️  Pruning vocabulary from {len(model.tokens):,} to target {target_size:,} -> new vocab size {len(new_tokens):,}")
     logger.debug(f"   ├─ Target size: {target_size:,} based on shrinking factor {shrinking_factor} * non base tokens {num_non_base_tokens:,} and desired vocab size {desired_vocab_size}")    
@@ -285,7 +280,7 @@ def finalize_tokens(
     
     # Ensure we keep all required base tokens
     base_token_set = {(t,) for t in pretokenizer.base_tokens}
-    base_token_ids = {i for i, t in enumerate(model.tokens) if tuple(t.base_tokens) in base_token_set}
+    base_token_ids = {t.id for t in model.tokens if tuple(t.base_tokens) in base_token_set}
     
     # Select top tokens, making sure to keep all base tokens
     selected_tokens = []
